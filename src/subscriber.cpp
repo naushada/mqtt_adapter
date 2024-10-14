@@ -51,8 +51,8 @@ std::int32_t MqttSubscriber::start() {
         //::setuid(0);
         //::seteuid(0);
         //::setgid(0);
-        if(execlp("mosquitto_sub", "mosquitto_sub", "-t 'test/topic' -v") < 0) {
-            std::cout << __FUNCTION__ <<":" << __LINE__ << " Spawning of mosquitto_sub is failed" << std::endl;
+        if(execlp("mosquitto_sub", "mosquitto_sub", "--debug", "-t test/topic -v", NULL) < 0) {
+            std::printf("%s:%d %s\n", __FUNCTION__, __LINE__,  "Spawning of mosquitto_sub is failed");
             ::perror("Error:");
             ::close(m_Fd[1]);
         }
@@ -66,6 +66,7 @@ std::int32_t MqttSubscriber::start() {
         while(1) {
             buff.resize(1024);
             buff.clear();
+            //std::cout << __FUNCTION__ <<":"<< __LINE__ << "Waiting for data to publish" << std::endl;
             auto len = ::read(m_Fd[0], buff.data(), buff.size());
             if(len > 0) {
                 buff.resize(len);
