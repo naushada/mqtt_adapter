@@ -51,7 +51,7 @@ std::int32_t MqttSubscriber::start() {
         //::setuid(0);
         //::seteuid(0);
         //::setgid(0);
-        if(execlp("mosquitto_sub", "mosquitto_sub", "--debug", "-t test/topic -v", NULL) < 0) {
+        if(execlp("mosquitto_sub", "mosquitto_sub", "-t 'test/topic'","--debug", "-v", NULL) < 0) {
             std::printf("%s:%d %s\n", __FUNCTION__, __LINE__,  "Spawning of mosquitto_sub is failed");
             ::perror("Error:");
             ::close(m_Fd[1]);
