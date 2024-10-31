@@ -1,0 +1,70 @@
+1. Create Folder by name build inside smtc
+2. execute cd build at shell prompt
+3. execute cmake ..
+4. execute make
+5. go inside build Folder
+To run this executable for Command & Control Centre - run this command
+    - sudo ./smtc --role server --local-host 10.203.77.36 --local-port 48989
+    - Where IP address & port on which Notifier Running inside container will notify the location attributes.
+To run this executable for RestClient & Notifier to Command & Control Centre
+    - Precondition - At AOS Router, create a User with Credentials mentioned below.
+    - sudo ./smtc --role client --peer-host 10.203.77.36 --peer-port 48989 --userid user --password Pin@411048
+----
+Building Docker image for amd64 target
+docker build -t naushada/hackthon:latest $HOME/sw/hackthon -f Dockerfile
+docker run --rm naushada/hackthon:latest /opt/app/smtc --role server --local-host 10.203.77.36 --local-port 48989
+
+docker run --rm -p 1883:1883 naushada/hackthon:latest /opt/app/service
+docker run --rm -p 192.168.1.102:1883:1883  naushada/hackthon:latest /opt/app/service
+Building Docker image for arm64 target
+For XR80/90
+docker buildx build --provenance=false --platform linux/arm64 -t naushada/hackthon:latest $HOME/sw/hackthon -f Dockerfile --builder aosbuilder --load
+
+For RX55
+docker buildx build --provenance=false --platform linux/arm/v7 -t naushada/hackthonrx55:latest $HOME/sw/hackthon -f Dockerfile --builder aosbuilder --load
+
+
+Save docker image as tar file 
+docker save -o image.tar naushada/hackthonrx55
+
+speed.txt
+rpm.txt
+
+scp -i Hackathon_Linux_key.pem hackthon_latest.tar ubuntu@ec2-65-0-138-186.ap-south-1.compute.amazonaws.com:~/
+
+ssh -i "Hackathon_Linux_key.pem" ubuntu@ec2-65-0-138-186.ap-south-1.compute.amazonaws.com
+
+
+/opt/app/smtc --role client --peer-host 10.203.77.36 --peer-port 48989 --userid user --password Pin@411048 --local-host 192.168.1.109 --local-port 38989
+
+
+/mnt/user/ctrmgr/workdir/volumes/vmap
+
+
+sudo docker build -t naushada/hackthon:latest $HOME/teams/hackthon -f Dockerfile
+172.31.9.244
+sudo docker run --rm -p 48989:48989 naushada/hackthon:latest /opt/app/smtc --role server --local-host 0.0.0.0 --local-port 48989
+
+
+/opt/app/smtc --role client --peer-host 65.0.138.186 --peer-port 48989 --userid user --password Pin@411048 --local-host 192.168.1.100 --local-port 38989
+
+
+
+sudo ./smtc --role client --peer-host 65.0.138.186 --peer-port 48989 --userid user --password Pin@411048 --local-host 10.203.77.36 --local-port 38989
+
+
+
+
+01:12:21:72:06:2b:06
+
+sudo ./smtc --role client --peer-host 65.0.138.186 --peer-port 48989 --userid user --password Pin@411048 --local-host 10.203.77.36 --local-port 38989
+
+docker build -t naushada/hackthon:latest $HOME/sw/hackthon -f Dockerfile
+sudo docker run -d -p 2222:22 naushada/hackthon:latest
+sudo docker ps -aq | while read line;  do sudo docker inspect -f '{{.Name}} - {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $line ; done
+
+
+https://cedalo.com/blog/mosquitto-docker-configuration-ultimate-guide/
+
+
+remove the docker image --- sudo docker rmi <image id>
