@@ -64,30 +64,32 @@ std::int32_t Services::handleDataFromConnectedClient(std::int32_t channel, Servi
                       <<":"<<" Received:\n"<< out << "\nlength:" << ret <<std::endl;
             Http ht(out);
 
-            auto effectiveLength = ht.header().length() - ret;
+            std::int32_t effectiveLength;
 
-            if(!ht.value("Content-Length").empty() && effectiveLength > 0) {
+            if(!ht.value("Content-Length").empty()) {
                 ///Content-Length Field is present.
                 std::cout << basename(__FILE__) << ":" << __FUNCTION__ <<":"<< __LINE__<<":"
-                          <<" Content-Length:"<<  std::stoi(ht.value("Content-Length")) 
-                          <<" actual Length:" << ret << " header_length:" << ht.header().length() 
+                          <<" Content-Length: "<<  std::stoi(ht.value("Content-Length")) 
+                          <<" actual Length: " << ret << " header_length:" << ht.header().length() 
                           << std::endl;
+
                 effectiveLength = (ht.header().length() + std::stoi(ht.value("Content-Length"))) - ret;
             }
 
             std::cout << basename(__FILE__) <<":" <<__FUNCTION__ <<":"<< __LINE__<<":"
                       <<" Effective Length:" << effectiveLength << std::endl;
             ss << out;
+
             std::int32_t offset = 0;
-            if(effectiveLength > 0) {
-                do {
-                    ret = clnt->rx(out, (effectiveLength-offset));
-                    if(ret> 0) {
-                        out.resize(ret);
-                        ss << out;
-                        offset += ret;
-                    }
-                } while(offset != effectiveLength);
+            while(offset != effectiveLength) {
+                ret = clnt->rx(out, (effectiveLength-offset));
+                if(ret > 0) {
+                    out.resize(ret);
+                    ss << out;
+                    offset += ret;
+                } else {
+                    break;
+                }
             }
 
             if(!ss.str().empty()) {
@@ -106,14 +108,14 @@ std::int32_t Services::handleDataFromConnectedClient(std::int32_t channel, Servi
                             auto req = restClient()->buildHeader(HTTPClient::HTTPUriName::NotifyTelemetry, http.body());
                             auto len = notifierClient()->tx(req);
                             std::cout << basename(__FILE__) <<":" <<__FUNCTION__<<":" << __LINE__
-                                      <<" Sent Telemetry Data to Command & Control Centre:\n" << req << std::endl;
+                                      <<" Sent Telemetry Data to Command & Control Centre: " << req << std::endl;
                             ///@brief Build & send Response to Telemetry Client.
                             auto rsp = restClient()->buildResponse(std::string());
                             if(!rsp.empty()) {
                                 clnt->tx(rsp);
                             }
                             std::cout <<basename(__FILE__) <<":"<<__FUNCTION__<<":" << __LINE__
-                                      <<" Empty Response sent to Telemetry client:\n" << rsp << std::endl;
+                                      <<" Empty Response sent to Telemetry client: " << rsp << std::endl;
                         }
                     } else if("/api/v1/notify/location" == http.uri()) {
                         ///@brief Command & Control received location information.
@@ -122,7 +124,7 @@ std::int32_t Services::handleDataFromConnectedClient(std::int32_t channel, Servi
                     } else if("/api/v1/notify/telemetry" == http.uri()) {
                         ///@brief Command & Control received telemetry data.
                         std::cout <<basename(__FILE__) <<":"<<__FUNCTION__<<":" << __LINE__
-                                  <<" Telemetry Data Received:\n" << http.body() << std::endl;
+                                  <<" Received Telemetry Data: " << http.body() << std::endl;
                     }
                 } else if(http.status_code() == "200") {
                     ///@brief This is an ACK.
@@ -164,7 +166,6 @@ std::int32_t Services::handleDataFromConnectedClient(std::int32_t channel, Servi
             createRestClient(IPPROTO_TCP, true, true, peerHost, peerPort, localHost, localPort);
         } else {
             Http http(request);
-            //std::cout << __FUNCTION__ <<":" <<__LINE__ <<"Request:" << request << std::endl; 
             std::int32_t effectiveLength = http.header().length() - actualLength;
             if(http.value("Content-Length").length()) {
                 ///Content-Length Field is present.

@@ -319,9 +319,9 @@ std::int32_t Client::rx(const std::int32_t& fd, std::string& out, const std::int
 
 std::int32_t Client::rx(std::string& out, const std::int32_t& len) {
     std::int32_t ret = -1;
-    //std::cout << __FUNCTION__ <<":" <<__LINE__ <<"Entry: length:"<< len << " channel:" << handle()<< std::endl;
+
     if(len < 0) {
-        std::cout << __FUNCTION__ <<":" <<__LINE__ <<"value of len:"<< len << std::endl;
+        std::cout << basename(__FILE__) <<":"<<__FUNCTION__ <<":" <<__LINE__ <<" value of len:"<< len << std::endl;
         return(ret);
     }
 
@@ -337,11 +337,9 @@ std::int32_t Client::rx(std::string& out, const std::int32_t& len) {
                 buffer.resize(ret);
                 ss.write(reinterpret_cast<char *>(buffer.data()), ret);
             } else if(!ret) {
-                // TODO:: Add Error log
-                //std::cout <<__FUNCTION__<<":"<<__LINE__<<"::recv for handle:" << handle() <<"returns length:" << ret << std::endl;
                 return(ret);
             } else {
-                std::cout << __FUNCTION__ <<":" <<__LINE__ <<" Erro on recv for channel:"<< handle() << std::strerror(errno) << std::endl;
+                std::cout << basename(__FILE__) <<":"<< __FUNCTION__ <<":" <<__LINE__ <<" Erro on recv for channel:"<< handle() << std::strerror(errno) << std::endl;
             }
             if(!ss.str().empty()) {
                 out.assign(ss.str());
@@ -407,7 +405,7 @@ std::int32_t Client::tx(const std::string& in) {
                         offset += ret;
                     } else {
                         // TODO:: Add Error log
-                        std::cout << __FUNCTION__ << ":" << __LINE__ << "tx error ret:" << ret << std::endl;
+                        std::cout << basename(__FILE__) <<":"<< __FUNCTION__ << ":" << __LINE__ << "tx error ret:" << ret << std::endl;
                         break;
                     }
                 } while(offset != len);
