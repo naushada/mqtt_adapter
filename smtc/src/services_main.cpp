@@ -556,7 +556,7 @@ Services& Services::start() {
                 ConnectionStatus cs = static_cast<ConnectionStatus>(elm & 0x0000000FU);
 
                 std::cout << basename(__FILE__)<< ":" << __LINE__ << " channel:" << handle << " ServiceType:"
-                          << st << " ServiceApplicationProtocolType:" << std::to_string(sap) << " ServiceTransportType:" << std::to_string(stt) 
+                          << std::to_string(st) << " ServiceApplicationProtocolType:" << std::to_string(sap) << " ServiceTransportType:" << std::to_string(stt) 
                           << " ServiceSecurityType: " << std::to_string(sst) 
                           << " ConnectionStatus: " << std::to_string(cs)
                           << std::endl;
@@ -572,12 +572,12 @@ Services& Services::start() {
                         if(ServiceType::ServiceClient == st) {
                             std::cout << basename(__FILE__) <<":" <<__FUNCTION__ <<":"<< __LINE__<<":"
                                       <<" Connected to REST Server" << std::endl;
-                            ent.events = EPOLLHUP|EPOLLIN;
+                            ent.events = EPOLLIN;
                             ::epoll_ctl(m_epollFd, EPOLL_CTL_MOD, handle, &ent);
                         } else if(ServiceType::ServiceNotifier == st) {
                             std::cout << basename(__FILE__) <<":"<<__FUNCTION__ <<":"<< __LINE__<<":"
                                       <<" Connected to Notifier Server" << std::endl;
-                            ent.events = EPOLLHUP|EPOLLIN;
+                            ent.events = EPOLLIN;
                             ::epoll_ctl(m_epollFd, EPOLL_CTL_MOD, handle, &ent);
                         }
                     }
