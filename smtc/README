@@ -23,6 +23,8 @@ docker buildx build --provenance=false --platform linux/arm64 -t naushada/hackth
 For RX55
 docker buildx build --provenance=false --platform linux/arm/v7 -t naushada/hackthonrx55:latest $HOME/sw/hackthon -f Dockerfile --builder aosbuilder --load
 
+###############
+docker buildx build --provenance=false --platform linux/arm64, linux/arm/v7 -t naushada/mqtt_adapter:latest $HOME/sw/mqtt_adapter -f Dockerfile --push
 
 Save docker image as tar file 
 docker save -o image.tar naushada/hackthonrx55
