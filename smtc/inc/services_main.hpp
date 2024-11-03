@@ -38,13 +38,14 @@ class Services {
         enum ServiceApplicationProtocolType:std::uint8_t {REST=0, LwM2M=1, File=2, ProtocolInvalid=3};
         enum ServiceTransportType:std::uint8_t {TCP=0, UDP=1, TransportInvalid=2};
         enum ServiceSecurityType:std::uint8_t {TLS=0, DTLS=1, SecurityNone=2};
+        enum ConnectionStatus:std::uint8_t {Inprogress=0, Connected=1, ConnectionNone=2};
 
         Services();
         Services& init();
         Services& start();
         Services& stop();
         std::int32_t handleDataFromConnectedClient(std::int32_t channel, ServiceType st, ServiceApplicationProtocolType sap, ServiceTransportType stt, ServiceSecurityType sst);
-        std::int32_t handleClientConnection(std::int32_t handle, ServiceType st, ServiceApplicationProtocolType sap, ServiceTransportType stt, ServiceSecurityType sst);
+        std::int32_t handleClientConnection(std::int32_t handle, ServiceType st, ServiceApplicationProtocolType sap, ServiceTransportType stt, ServiceSecurityType sst, ConnectionStatus cs);
         std::int32_t handleIO(std::int32_t handle, ServiceType st, ServiceApplicationProtocolType sap, ServiceTransportType stt, ServiceSecurityType sst);
         virtual ~Services();
 

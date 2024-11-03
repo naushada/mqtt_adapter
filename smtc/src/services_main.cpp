@@ -133,7 +133,6 @@ std::int32_t Services::handleDataFromConnectedClient(std::int32_t channel, Servi
         } else if(!ret) {
             std::cout << basename(__FILE__) <<":"<<__FUNCTION__ <<":"<< __LINE__<<":"
                       <<" Connected Client is closed: "<< std::endl;
-            deleteClient(channel, st);
 
             if(st == ServiceType::ServiceNotifier) {
                 /// @brief Server is down or restarted.
@@ -141,8 +140,9 @@ std::int32_t Services::handleDataFromConnectedClient(std::int32_t channel, Servi
                 std::string localHost = notifierClient()->peerHost();
                 std::uint16_t peerPort = notifierClient()->peerPort();
                 std::uint16_t localPort = notifierClient()->localPort();
+                deleteClient(channel, st);
                 ///@brief Attempt to Connect to Command & Control Centre.
-                createNotifierClient(IPPROTO_TCP, true, true, peerHost, peerPort, localHost, localPort);
+                createNotifierClient(IPPROTO_TCP, false, true, peerHost, peerPort, localHost, localPort);
             }
         } else {
             std::cout <<basename(__FILE__) <<":" <<__FUNCTION__ <<":"<< __LINE__<<":"
@@ -210,8 +210,32 @@ std::int32_t Services::handleDataFromConnectedClient(std::int32_t channel, Servi
     return(0);
 }
 
-std::int32_t Services::handleClientConnection(std::int32_t handle, ServiceType st, ServiceApplicationProtocolType sap, ServiceTransportType stt, ServiceSecurityType sst) {
-    return(0);
+std::int32_t Services::handleClientConnection(std::int32_t handle, ServiceType st, ServiceApplicationProtocolType sap,
+                                              ServiceTransportType stt, ServiceSecurityType sst, ConnectionStatus cs) {
+    if(cs == ConnectionStatus::Inprogress) {
+        int so_error;
+        socklen_t len = sizeof(so_error);
+        if(getsockopt(handle, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0) {
+            std::cerr << "getsockopt failed: " << strerror(errno) << std::endl;
+            std::string peerHost = notifierClient()->peerHost();
+            std::string localHost = notifierClient()->peerHost();
+            std::uint16_t peerPort = notifierClient()->peerPort();
+            std::uint16_t localPort = notifierClient()->localPort();
+            std::cout << basename(__FILE__) << ":"<<__FUNCTION__ <<":" << __LINE__ <<":" << "Peer server: " << peerHost<<":" <<std::to_string(peerPort) 
+                      << " is Down Attempting to Connect..." << std::endl;
+            deleteClient(handle, st);
+            ///@brief Attempt to Connect to Command & Control Centre.
+            if(st == ServiceType::ServiceNotifier) {
+                createNotifierClient(IPPROTO_TCP, false, true, peerHost, peerPort, localHost, localPort);
+            }
+            return(-1);
+        }
+
+        if(so_error == 0) {
+            return(0);
+        }
+    }
+    return(-2);
 }
 
 std::int32_t Services::deleteClient(std::int32_t channel,ServiceType st) {
@@ -262,7 +286,8 @@ std::int32_t Services::handleIO(std::int32_t channel, ServiceType st, ServiceApp
                               static_cast<std::uint64_t>(((ServiceType::ServiceWebConnectedClient & 0xFFU) << 24U) |
                                                          ((ServiceApplicationProtocolType::REST & 0xFFU) << 16U) |
                                                          ((ServiceSecurityType::SecurityNone & 0xFFU) << 8U)) |
-                                                         (ServiceTransportType::TCP & 0xFF));
+                                                         (((ServiceTransportType::TCP & 0xF) << 4U) |
+                                                           (ConnectionStatus::ConnectionNone & 0xF)));
             ::epoll_ctl(m_epollFd, EPOLL_CTL_ADD, Fd, &evt);
             m_events.push_back(evt);
             std::cout << basename(__FILE__)<<":" << __FUNCTION__ <<":"<< __LINE__<<":" 
@@ -278,7 +303,8 @@ std::int32_t Services::handleIO(std::int32_t channel, ServiceType st, ServiceApp
                               static_cast<std::uint64_t>(((ServiceType::ServiceAppConnectedClient & 0xFFU) << 24U) |
                                                          ((ServiceApplicationProtocolType::REST & 0xFFU) << 16U) |
                                                          ((ServiceSecurityType::SecurityNone & 0xFFU) << 8U)) |
-                                                         (ServiceTransportType::TCP & 0xFF));
+                                                         (((ServiceTransportType::TCP & 0xF) << 4U) |
+                                                           (ConnectionStatus::ConnectionNone & 0xF)));
             ::epoll_ctl(m_epollFd, EPOLL_CTL_ADD, Fd, &evt);
             m_events.push_back(evt);
             std::cout << basename(__FILE__) <<":"<< __FUNCTION__ <<":"<< __LINE__<<":" 
@@ -294,7 +320,8 @@ std::int32_t Services::handleIO(std::int32_t channel, ServiceType st, ServiceApp
                               static_cast<std::uint64_t>(((ServiceType::ServiceTelemetryConnectedClient & 0xFFU) << 24U) |
                                                          ((ServiceApplicationProtocolType::REST & 0xFFU) << 16U) |
                                                          ((ServiceSecurityType::SecurityNone & 0xFFU) << 8U)) |
-                                                         (ServiceTransportType::TCP & 0xFF));
+                                                         (((ServiceTransportType::TCP & 0xF) << 4U) |
+                                                           (ConnectionStatus::ConnectionNone & 0xF)));
             ::epoll_ctl(m_epollFd, EPOLL_CTL_ADD, Fd, &evt);
             m_events.push_back(evt);
             std::cout << basename(__FILE__)<<":" <<__FUNCTION__ <<":"<< __LINE__<<":" 
@@ -317,7 +344,8 @@ std::int32_t Services::createWebServer(const std::int32_t& _qsize, const std::in
                           static_cast<std::uint64_t>(((ServiceType::ServiceWebServer & 0xFFU) << 24U) |
                                                      ((ServiceApplicationProtocolType::REST & 0xFFU) << 16U) |
                                                      ((ServiceSecurityType::SecurityNone & 0xFFU) << 8U)) |
-                                                     (ServiceTransportType::TCP & 0xFF));
+                                                     (((ServiceTransportType::TCP & 0xF) << 4U) |
+                                                       (ConnectionStatus::ConnectionNone & 0xF)));
         ::epoll_ctl(m_epollFd, EPOLL_CTL_ADD, channel, &evt);
         m_events.push_back(evt);
     }
@@ -336,7 +364,8 @@ std::int32_t Services::createTelemetryServer(const std::int32_t& _qsize, const s
                           static_cast<std::uint64_t>(((ServiceType::ServiceTelemetryServer & 0xFFU) << 24U) |
                                                      ((ServiceApplicationProtocolType::REST & 0xFFU) << 16U) |
                                                      ((ServiceSecurityType::SecurityNone & 0xFFU) << 8U)) |
-                                                     (ServiceTransportType::TCP & 0xFF));
+                                                     (((ServiceTransportType::TCP & 0xF) << 4U) |
+                                                       (ConnectionStatus::ConnectionNone & 0xF)));
         ::epoll_ctl(m_epollFd, EPOLL_CTL_ADD, channel, &evt);
         m_events.push_back(evt);
     }
@@ -354,7 +383,8 @@ std::int32_t Services::createAppServer(const std::int32_t& _qsize, const std::in
                           static_cast<std::uint64_t>(((ServiceType::ServiceAppServer & 0xFFU) << 24U) |
                                                      ((ServiceApplicationProtocolType::REST & 0xFFU) << 16U) |
                                                      ((ServiceSecurityType::SecurityNone & 0xFFU) << 8U)) |
-                                                     (ServiceTransportType::TCP & 0xFF));
+                                                     (((ServiceTransportType::TCP & 0xF) << 4U) |
+                                                       (ConnectionStatus::ConnectionNone & 0xF)));
         ::epoll_ctl(m_epollFd, EPOLL_CTL_ADD, channel, &evt);
         m_events.push_back(evt);
     }
@@ -367,15 +397,17 @@ std::int32_t Services::createNotifierClient(const std::int32_t& _protocol, const
     
     std::int32_t conErr =  notifierClient()->connect();
     struct epoll_event evt;
-
+    Services::ConnectionStatus cs=Services::ConnectionStatus::ConnectionNone;
     if(!conErr) {
         std::cout << basename(__FILE__) <<":"<< __FUNCTION__ <<":"<< __LINE__<<":"
                   <<" Connected to Notifier peer->" << notifierClient()->peerHost() << ":" << notifierClient()->peerPort() << std::endl;
         evt.events = EPOLLHUP | EPOLLIN;
+        cs=Services::ConnectionStatus::Connected;
     } else if(conErr == EINPROGRESS) {
         std::cout << basename(__FILE__) <<":" <<__FUNCTION__ <<":"<< __LINE__<<":"
                   <<" Connecting... to Notifier peer->" << notifierClient()->peerHost() << ":" << notifierClient()->peerPort() << std::endl;
         evt.events = EPOLLHUP | EPOLLOUT;
+        cs=Services::ConnectionStatus::Inprogress;
     } else {
         std::cout << basename(__FILE__) <<":" << __FUNCTION__ <<":"<< __LINE__<<":"
                   <<" Error... to Notifier peer->" << notifierClient()->peerHost() << ":" << notifierClient()->peerPort() << std::endl;
@@ -384,10 +416,11 @@ std::int32_t Services::createNotifierClient(const std::int32_t& _protocol, const
     std::int32_t channel = notifierClient()->handle();
         
     evt.data.u64 = (((static_cast<std::uint64_t>(channel & 0xFFFFFFFFU)) << 32U) |
-                      static_cast<std::uint64_t>(((ServiceType::ServiceNotifier & 0xFFU) << 24U) |
-                                                  ((ServiceApplicationProtocolType::REST & 0xFFU) << 16U) |
-                                                  ((ServiceSecurityType::SecurityNone & 0xFFU) << 8U)) |
-                                                   (ServiceTransportType::TCP & 0xFF));
+                      static_cast<std::uint64_t>(   ((ServiceType::ServiceNotifier & 0xFFU) << 24U) |
+                                                    ((ServiceApplicationProtocolType::REST & 0xFFU) << 16U) |
+                                                    ((ServiceSecurityType::SecurityNone & 0xFFU) << 8U)) |
+                                                  ( ((ServiceTransportType::TCP & 0xF) << 4U) |
+                                                     (cs & 0xF)));
         
     ::epoll_ctl(m_epollFd, EPOLL_CTL_ADD, channel, &evt);
     m_events.push_back(evt);
@@ -443,10 +476,11 @@ std::int32_t Services::createRestClient(const std::int32_t& _protocol, const boo
     std::int32_t channel = restClient()->handle();
         
     evt.data.u64 = (((static_cast<std::uint64_t>(channel & 0xFFFFFFFFU)) << 32U) |
-                      static_cast<std::uint64_t>(((ServiceType::ServiceClient & 0xFFU) << 24U) |
-                                                ((ServiceApplicationProtocolType::REST & 0xFFU) << 16U) |
-                                                ((ServiceSecurityType::TLS & 0xFFU) << 8U)) |
-                                                (ServiceTransportType::TCP & 0xFF));
+                      static_cast<std::uint64_t>( ((ServiceType::ServiceClient & 0xFFU) << 24U) |
+                                                  ((ServiceApplicationProtocolType::REST & 0xFFU) << 16U) |
+                                                  ((ServiceSecurityType::TLS & 0xFFU) << 8U)) |
+                                                ( ((ServiceTransportType::TCP & 0xF) << 4U) |
+                                                   (ConnectionStatus::ConnectionNone & 0xF)));
 
     ::epoll_ctl(m_epollFd, EPOLL_CTL_ADD, channel, &evt);
     m_events.push_back(evt);
@@ -465,10 +499,11 @@ Services& Services::init() {
         struct epoll_event evt;
         evt.events = EPOLLHUP | EPOLLIN;
         evt.data.u64 = (((static_cast<std::uint64_t>(sfd & 0xFFFFFFFFU)) << 32U) |
-                          static_cast<std::uint64_t>(((ServiceType::ServiceSignal & 0xFFU) << 24U) |
-                                                     ((ServiceApplicationProtocolType::ProtocolInvalid & 0xFFU) << 16U) |
-                                                     ((ServiceSecurityType::SecurityNone & 0xFFU) << 8U)) |
-                                                     (ServiceTransportType::TransportInvalid & 0xFF));
+                          static_cast<std::uint64_t>( ((ServiceType::ServiceSignal & 0xFFU) << 24U) |
+                                                      ((ServiceApplicationProtocolType::ProtocolInvalid & 0xFFU) << 16U) |
+                                                      ((ServiceSecurityType::SecurityNone & 0xFFU) << 8U)) |
+                                                     (((ServiceTransportType::TransportInvalid & 0xF) << 4U) |
+                                                       (ConnectionStatus::ConnectionNone & 0xF)));
         ::epoll_ctl(m_epollFd, EPOLL_CTL_ADD, sfd, &evt);
         m_events.push_back(evt);
     }
@@ -517,11 +552,14 @@ Services& Services::start() {
                 ServiceType st = static_cast<ServiceType>((elm & 0xFF000000U) >> 24U);
                 ServiceApplicationProtocolType sap = static_cast<ServiceApplicationProtocolType>((elm & 0x00FF0000U) >> 16U);
                 ServiceSecurityType sst = static_cast<ServiceSecurityType>((elm & 0x0000FF00U) >> 8U);
-                ServiceTransportType stt = static_cast<ServiceTransportType>(elm & 0x000000FFU);
+                ServiceTransportType stt = static_cast<ServiceTransportType>((elm & 0x000000F0U) >> 4U);
+                ConnectionStatus cs = static_cast<ConnectionStatus>(elm & 0x0000000FU);
 
                 std::cout << basename(__FILE__)<< ":" << __LINE__ << " channel:" << handle << " ServiceType:"
                           << st << " ServiceApplicationProtocolType:" << std::to_string(sap) << " ServiceTransportType:" << std::to_string(stt) 
-                         << " ServiceSecurityType: " << std::to_string(sst) << std::endl;
+                          << " ServiceSecurityType: " << std::to_string(sst) 
+                          << " ConnectionStatus: " << std::to_string(cs)
+                          << std::endl;
 
                 if(ServiceType::ServiceSignal == st) {
                     std::cout <<__FUNCTION__ <<":"<< __LINE__<<":"<<"Signal is received" << std::endl;
@@ -530,7 +568,7 @@ Services& Services::start() {
 
                 if(ent.events & EPOLLOUT) {
                     //std::cout <<__FUNCTION__ <<":"<< __LINE__<<":"<<"ent.events: EPOLLOUT" << std::endl;
-                    if(!handleClientConnection(handle, st, sap, stt, sst)) {
+                    if(!handleClientConnection(handle, st, sap, stt, sst, cs)) {
                         if(ServiceType::ServiceClient == st) {
                             std::cout << basename(__FILE__) <<":" <<__FUNCTION__ <<":"<< __LINE__<<":"
                                       <<" Connected to REST Server" << std::endl;
@@ -548,6 +586,7 @@ Services& Services::start() {
                 if(ent.events & EPOLLHUP) {
                     ///connection is closed by peer and read on socket will return 0 byte.
                     if(ServiceType::ServiceClient == st || ServiceType::ServiceNotifier == st) {
+                        std::cout << basename(__FILE__) << ":" << __FUNCTION__ <<":" << __LINE__ <<":" << " EPOLLHUP is received" <<std::endl;
                         deleteClient(handle,st);
                     }
                 }
@@ -645,7 +684,7 @@ int main(std::int32_t argc, char* argv[]) {
             options.getValue("peer-port", value);
             value.getUint16(port);
             std::cout << "peer-host:" << out << " peer-port:" << std::to_string(port) << std::endl;
-            svcInst.createNotifierClient(IPPROTO_TCP, true, true, out, port, "0.0.0.0", 0);
+            svcInst.createNotifierClient(IPPROTO_TCP, false, true, out, port, "0.0.0.0", 0);
             svcInst.createRestClient(IPPROTO_TCP, true, true, "192.168.1.1", 443, "0.0.0.0", 0);
             options.getValue("local-host", value);
             value.getString(out);
