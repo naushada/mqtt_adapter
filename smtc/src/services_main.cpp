@@ -566,23 +566,23 @@ Services& Services::start() {
                     infinite = false;
                 }
 
-                if(ent.events & EPOLLOUT) {
+                if((ent.events & EPOLLOUT) || (ent.events & EPOLLHUP)) {
                     //std::cout <<__FUNCTION__ <<":"<< __LINE__<<":"<<"ent.events: EPOLLOUT" << std::endl;
                     if(!handleClientConnection(handle, st, sap, stt, sst, cs)) {
                         if(ServiceType::ServiceClient == st) {
                             std::cout << basename(__FILE__) <<":" <<__FUNCTION__ <<":"<< __LINE__<<":"
                                       <<" Connected to REST Server" << std::endl;
-                            ent.events = EPOLLIN;
+                            ent.events = EPOLLHUP | EPOLLIN;
                             ::epoll_ctl(m_epollFd, EPOLL_CTL_MOD, handle, &ent);
                         } else if(ServiceType::ServiceNotifier == st) {
                             std::cout << basename(__FILE__) <<":"<<__FUNCTION__ <<":"<< __LINE__<<":"
                                       <<" Connected to Notifier Server" << std::endl;
-                            ent.events = EPOLLIN;
+                            ent.events = EPOLLHUP|EPOLLIN;
                             ::epoll_ctl(m_epollFd, EPOLL_CTL_MOD, handle, &ent);
                         }
                     }
                 }
-
+                #if 0
                 if(ent.events & EPOLLHUP) {
                     ///connection is closed by peer and read on socket will return 0 byte.
                     if(ServiceType::ServiceClient == st || ServiceType::ServiceNotifier == st) {
@@ -590,6 +590,7 @@ Services& Services::start() {
                         deleteClient(handle,st);
                     }
                 }
+                #endif
 
                 if(ent.events & EPOLLIN) {
                     //std::cout << "ent.events: EPOLLIN" << std::endl;
