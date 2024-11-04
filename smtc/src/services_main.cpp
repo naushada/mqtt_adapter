@@ -492,6 +492,8 @@ Services& Services::init() {
     sigemptyset(&m_mask);
     sigaddset(&m_mask, SIGINT);
     sigaddset(&m_mask, SIGQUIT);
+    sigaddset(&m_mask, SIGHUP|SIGTERM|SIGTSTP);
+    
     sigprocmask(SIG_BLOCK, &m_mask, NULL);
     
     std::int32_t sfd = signalfd(-1, &m_mask, SFD_NONBLOCK);
