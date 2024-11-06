@@ -213,25 +213,36 @@ std::int32_t Services::handleDataFromConnectedClient(std::int32_t channel, Servi
 std::int32_t Services::handleClientConnection(std::int32_t handle, ServiceType st, ServiceApplicationProtocolType sap,
                                               ServiceTransportType stt, ServiceSecurityType sst, ConnectionStatus cs) {
     if(cs == ConnectionStatus::Inprogress) {
-        int so_error;
-        socklen_t len = sizeof(so_error);
-        if(getsockopt(handle, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0) {
-            std::cerr << "getsockopt failed: " << strerror(errno) << std::endl;
-            std::string peerHost = notifierClient()->peerHost();
-            std::string localHost = notifierClient()->peerHost();
-            std::uint16_t peerPort = notifierClient()->peerPort();
-            std::uint16_t localPort = notifierClient()->localPort();
-            std::cout << basename(__FILE__) << ":"<<__FUNCTION__ <<":" << __LINE__ <<":" << "Peer server: " << peerHost<<":" <<std::to_string(peerPort) 
-                      << " is Down Attempting to Connect..." << std::endl;
-            deleteClient(handle, st);
-            ///@brief Attempt to Connect to Command & Control Centre.
-            if(st == ServiceType::ServiceNotifier) {
-                createNotifierClient(IPPROTO_TCP, false, true, peerHost, peerPort, localHost, localPort);
-            }
-            return(-1);
-        }
+        struct sockaddr_in peer;
+        socklen_t peer_len = sizeof(peer);
 
-        if(so_error == 0) {
+        if(getpeername(handle, (struct sockaddr *)&peer, &peer_len)) {
+            ///@brief Error...
+            std::cerr << "getpeername failed: " << strerror(errno) << std::endl;
+            if(ENOTCONN == errno) {
+                int so_error;
+                socklen_t len = sizeof(so_error);
+                if(getsockopt(handle, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0) {
+                    std::cerr << "getsockopt failed: " << strerror(errno) << std::endl;
+                    std::string peerHost = notifierClient()->peerHost();
+                    std::string localHost = notifierClient()->peerHost();
+                    std::uint16_t peerPort = notifierClient()->peerPort();
+                    std::uint16_t localPort = notifierClient()->localPort();
+                    std::cout << basename(__FILE__) << ":"<<__FUNCTION__ <<":" << __LINE__ <<":" << "Peer server: " << peerHost<<":" <<std::to_string(peerPort) 
+                            << " is Down Attempting to Connect..." << std::endl;
+                    deleteClient(handle, st);
+                    ///@brief Attempt to Connect to Command & Control Centre.
+                    if(st == ServiceType::ServiceNotifier) {
+                        createNotifierClient(IPPROTO_TCP, false, true, peerHost, peerPort, localHost, localPort);
+                    }
+                    return(-1);
+                }
+
+                if(so_error == 0) {
+                    return(0);
+                }
+            }
+        } else {
             return(0);
         }
     }
@@ -579,6 +590,8 @@ Services& Services::start() {
                         } else if(ServiceType::ServiceNotifier == st) {
                             std::cout << basename(__FILE__) <<":"<<__FUNCTION__ <<":"<< __LINE__<<":"
                                       <<" Connected to Notifier Server" << std::endl;
+                            cs = ConnectionStatus::Connected;
+                            ent.data.u64 = ((elm & 0xFFFFFFFFFFFFFFF0) | (cs &0x0F)); 
                             ent.events = EPOLLHUP|EPOLLIN;
                             ::epoll_ctl(m_epollFd, EPOLL_CTL_MOD, handle, &ent);
                         }
