@@ -23,6 +23,9 @@ static int32_t getHandle(service_type_t svt, struct epoll_event *evt[], int32_t 
 
 static int32_t registerToepoll(int32_t epollFd, int32_t fd, service_type_t svt, struct epoll_event *evt) {
     evt->events = EPOLLHUP | EPOLLIN;
+    if(SERVICE_TYPE_NOTIFY_TELEMETRY_DATA == svt) {
+        evt->events = EPOLLHUP | EPOLLOUT;
+    }
     evt->data.u64 = ((((uint64_t)(fd & 0xFFFFFFFFU)) << 32U) |
                         (uint64_t)((svt & 0xFFU) << 24U));
     int32_t ret = epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, evt);
@@ -175,7 +178,7 @@ int32_t createAndRegisterSignal(int32_t epollFd, struct epoll_event *evt) {
 
 int32_t startAndConnectTCPClient(const char* host, uint16_t port) {
     int32_t ret = -1;
-    int32_t handle = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    int32_t handle = socket(AF_INET, (SOCK_STREAM | SOCK_NONBLOCK), IPPROTO_TCP);
 
     if(handle > 0) {
 
@@ -192,6 +195,10 @@ int32_t startAndConnectTCPClient(const char* host, uint16_t port) {
 
         ret = connect(handle, (struct sockaddr *)&peerAddr, sizeof(peerAddr));
         if(ret < 0) {
+            if(EINPROGRESS == errno) {
+                fprintf(stderr, "%s:%d connecting to TCP server on port 28989 is in-progress\n", basename(__FILE__), __LINE__);
+                return(handle);
+            }
             // TODO:: Add Error log
             close(handle);
             return(-1);
@@ -318,7 +325,7 @@ int main(int argc, char *argv[])
 
                 evtlist[1] = clntevt;
                 ret = registerToepoll(epollFd, connFd, SERVICE_TYPE_NOTIFY_TELEMETRY_DATA , clntevt);
-                fprintf(stderr, "%s:%d Connected to Telemetry server\n", __FUNCTION__, __LINE__);
+                //fprintf(stderr, "%s:%d Connected to Telemetry server\n", __FUNCTION__, __LINE__);
                 break;
             }
         }
@@ -349,7 +356,32 @@ int main(int argc, char *argv[])
                         if(handleIO(channel, svc, evtlist, 3) < 0) {
                             break;
                         }
-                    }   
+                    }
+
+                    if((activeEvent[idx].events & EPOLLOUT) || (activeEvent[idx].events & EPOLLHUP)) {
+                        struct sockaddr_in peer;
+                        socklen_t peer_len = sizeof(peer);
+
+                        if(getpeername(channel, (struct sockaddr *)&peer, &peer_len)) {
+                            ///@brief Error...
+                            if(ENOTCONN == errno) {
+                                int so_error;
+                                socklen_t len = sizeof(so_error);
+                                if(getsockopt(channel, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0) {
+                                    close(channel);
+                                    epoll_ctl(epollFd, EPOLL_CTL_DEL, channel, NULL);
+                                    int32_t connFd = startAndConnectTCPClient("0.0.0.0", 28989);
+                                    if(connFd > 0) {
+                                        registerToepoll(epollFd, connFd, SERVICE_TYPE_NOTIFY_TELEMETRY_DATA , evtlist[1]);
+                                    }
+                                }
+                            }
+                        } else {
+                            fprintf(stderr, "%s:%d Connected to TCP Server\n", basename(__FILE__),__LINE__);
+                            activeEvent[idx].events = EPOLLHUP | EPOLLIN;
+                            epoll_ctl(epollFd, EPOLL_CTL_MOD, channel, &activeEvent[idx]);
+                        }
+                    }
                 }
             }
         }

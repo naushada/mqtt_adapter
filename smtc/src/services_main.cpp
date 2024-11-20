@@ -579,6 +579,21 @@ Services& Services::start() {
                     infinite = false;
                 }
 
+                
+                #if 0
+                if(ent.events & EPOLLHUP) {
+                    ///connection is closed by peer and read on socket will return 0 byte.
+                    if(ServiceType::ServiceClient == st || ServiceType::ServiceNotifier == st) {
+                        std::cout << basename(__FILE__) << ":" << __FUNCTION__ <<":" << __LINE__ <<":" << " EPOLLHUP is received" <<std::endl;
+                        deleteClient(handle,st);
+                    }
+                }
+                #endif
+
+                if(ent.events & EPOLLIN) {
+                    //std::cout << "ent.events: EPOLLIN" << std::endl;
+                    handleIO(handle, st, sap, stt, sst);
+                }
                 if((ent.events & EPOLLOUT) || (ent.events & EPOLLHUP)) {
                     //std::cout <<__FUNCTION__ <<":"<< __LINE__<<":"<<"ent.events: EPOLLOUT" << std::endl;
                     if(!handleClientConnection(handle, st, sap, stt, sst, cs)) {
@@ -596,20 +611,6 @@ Services& Services::start() {
                             ::epoll_ctl(m_epollFd, EPOLL_CTL_MOD, handle, &ent);
                         }
                     }
-                }
-                #if 0
-                if(ent.events & EPOLLHUP) {
-                    ///connection is closed by peer and read on socket will return 0 byte.
-                    if(ServiceType::ServiceClient == st || ServiceType::ServiceNotifier == st) {
-                        std::cout << basename(__FILE__) << ":" << __FUNCTION__ <<":" << __LINE__ <<":" << " EPOLLHUP is received" <<std::endl;
-                        deleteClient(handle,st);
-                    }
-                }
-                #endif
-
-                if(ent.events & EPOLLIN) {
-                    //std::cout << "ent.events: EPOLLIN" << std::endl;
-                    handleIO(handle, st, sap, stt, sst);
                 }
                 if(ent.events & EPOLLERR) {
                     ///Error on socket.
