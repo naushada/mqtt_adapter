@@ -220,7 +220,7 @@ std::int32_t Services::handleClientConnection(std::int32_t handle, ServiceType s
             ///@brief Error...
             std::cerr << "getpeername failed: " << strerror(errno) << std::endl;
             if(ENOTCONN == errno) {
-                int so_error;
+                int so_error = -1;
                 socklen_t len = sizeof(so_error);
                 if(getsockopt(handle, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0) {
                     std::cerr << "getsockopt failed: " << strerror(errno) << std::endl;
@@ -236,9 +236,8 @@ std::int32_t Services::handleClientConnection(std::int32_t handle, ServiceType s
                         createNotifierClient(IPPROTO_TCP, false, true, peerHost, peerPort, localHost, localPort);
                     }
                     return(-1);
-                }
-
-                if(so_error == 0) {
+                } else if(!so_error) {
+                    std::cout << basename(__FILE__) << ":"<<__FUNCTION__ <<":" << __LINE__ <<":" << "Notifier Client is connected" << std::endl;
                     return(0);
                 }
             }

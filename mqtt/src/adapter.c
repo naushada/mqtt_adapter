@@ -309,26 +309,22 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        while(1) {
-            int32_t connFd = startAndConnectTCPClient("0.0.0.0", 28989);
+        int32_t connFd = startAndConnectTCPClient("0.0.0.0", 28989);
 
-            if(connFd < 0) {
-                fprintf(stderr, "%s:%d Connect to TCP Server Failed for Vehicle Data\n", __FUNCTION__, __LINE__);
-                sleep(1);
-            } else {
-                fprintf(stderr, "%s:%d Telemetry client Fd:%d\n", __FUNCTION__, __LINE__, connFd);
-                struct epoll_event *clntevt = (struct epoll_event*)malloc(sizeof(struct epoll_event));
-
-                if(NULL == clntevt) {
-                    exit(1);
-                }
-
-                evtlist[1] = clntevt;
-                ret = registerToepoll(epollFd, connFd, SERVICE_TYPE_NOTIFY_TELEMETRY_DATA , clntevt);
-                //fprintf(stderr, "%s:%d Connected to Telemetry server\n", __FUNCTION__, __LINE__);
-                break;
-            }
+        if(connFd < 0) {
+            fprintf(stderr, "%s:%d Connect to TCP Server Failed for Vehicle Data\n", __FUNCTION__, __LINE__);
+            exit(0);
         }
+
+        fprintf(stderr, "%s:%d Telemetry client Fd:%d\n", __FUNCTION__, __LINE__, connFd);
+        struct epoll_event *clntevt = (struct epoll_event*)malloc(sizeof(struct epoll_event));
+
+        if(NULL == clntevt) {
+            exit(1);
+        }
+
+        evtlist[1] = clntevt;
+        ret = registerToepoll(epollFd, connFd, SERVICE_TYPE_NOTIFY_TELEMETRY_DATA , clntevt);
 
         struct epoll_event *mqttsub = (struct epoll_event*)malloc(sizeof(struct epoll_event));
         if(NULL == mqttsub) {
@@ -365,7 +361,7 @@ int main(int argc, char *argv[])
                         if(getpeername(channel, (struct sockaddr *)&peer, &peer_len)) {
                             ///@brief Error...
                             if(ENOTCONN == errno) {
-                                int so_error;
+                                int so_error = -1;
                                 socklen_t len = sizeof(so_error);
                                 if(getsockopt(channel, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0) {
                                     close(channel);
@@ -374,6 +370,10 @@ int main(int argc, char *argv[])
                                     if(connFd > 0) {
                                         registerToepoll(epollFd, connFd, SERVICE_TYPE_NOTIFY_TELEMETRY_DATA , evtlist[1]);
                                     }
+                                } else if(!so_error) {
+                                    fprintf(stderr, "%s:%d Connected to TCP Server\n", basename(__FILE__),__LINE__);
+                                    activeEvent[idx].events = EPOLLHUP | EPOLLIN;
+                                    epoll_ctl(epollFd, EPOLL_CTL_MOD, channel, &activeEvent[idx]);
                                 }
                             }
                         } else {
