@@ -196,7 +196,7 @@ int32_t startAndConnectTCPClient(const char* host, uint16_t port) {
         ret = connect(handle, (struct sockaddr *)&peerAddr, sizeof(peerAddr));
         if(ret < 0) {
             if(EINPROGRESS == errno) {
-                fprintf(stderr, "%s:%d connecting to TCP server on port 28989 is in-progress\n", basename(__FILE__), __LINE__);
+                fprintf(stderr, "%s:%d connecting to Telemetry server on port 28989 is in-progress\n", basename(__FILE__), __LINE__);
                 return(handle);
             }
             // TODO:: Add Error log
@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
 
         //setpgrp();
         if(execvp(_argv[0], _argv) < 0) {
-            printf("%s:%d %s\n", __FUNCTION__, __LINE__,  "Spawning of mosquitto is failed");
+            fprintf(stderr, "%s:%d %s\n", basename(__FILE__), __LINE__,  "Spawning of mosquitto is failed");
             perror("Error:");
         }
     }
@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
         };
 
         if(execvp(_argv[0], _argv) < 0) {
-            printf("%s:%d %s\n", __FUNCTION__, __LINE__,  "Spawning of mosquitto_sub is failed");
+            fprintf(stderr, "%s:%d %s\n", basename(__FILE__), __LINE__,  "Spawning of mosquitto_sub is failed");
             perror("Error:");
         }
         close(Fd[1]);
@@ -294,7 +294,7 @@ int main(int argc, char *argv[])
         int32_t epollFd = epoll_create1(EPOLL_CLOEXEC);
 
         if(epollFd < 0) {
-            fprintf(stderr,"%s:%d %s",__FUNCTION__,__LINE__, "creation of epollFd failed\n");
+            fprintf(stderr,"%s:%d %s",basename(__FILE__),__LINE__, "creation of epollFd failed\n");
             exit(1);
         }
 
@@ -312,7 +312,7 @@ int main(int argc, char *argv[])
         int32_t connFd = startAndConnectTCPClient("0.0.0.0", 28989);
 
         if(connFd < 0) {
-            fprintf(stderr, "%s:%d Connect to TCP Server Failed for Vehicle Data\n", __FUNCTION__, __LINE__);
+            fprintf(stderr, "%s:%d Connect to Telemetry Server Failed for Vehicle Data\n", bansename(__FILE__), __LINE__);
             exit(0);
         }
 
@@ -353,7 +353,7 @@ int main(int argc, char *argv[])
                             break;
                         }
                     } else if(activeEvent[idx].events & EPOLLHUP) {
-                        fprintf(stderr, "%s:%d TCP Server is Down ... Attempting the connection\n", basename(__FILE__),__LINE__);
+                        fprintf(stderr, "%s:%d Telemetry Server is Down ... Attempting the connection\n", basename(__FILE__),__LINE__);
                         close(channel);
                         epoll_ctl(epollFd, EPOLL_CTL_DEL, channel, NULL);
                         int32_t connFd = startAndConnectTCPClient("0.0.0.0", 28989);
@@ -382,7 +382,8 @@ int main(int argc, char *argv[])
                         } else {
                             fprintf(stderr, "%s:%d Connected to TCP Server successfully\n", basename(__FILE__),__LINE__);
                             activeEvent[idx].events = EPOLLHUP | EPOLLIN;
-                            epoll_ctl(epollFd, EPOLL_CTL_MOD, channel, &activeEvent[idx]);
+                            activeEvent[idx].data.u64 = elm;
+                            epoll_ctl(epollFd, EPOLL_CTL_MOD, channel, clntevt);
                         }
                     }
                 }
