@@ -33,6 +33,27 @@
 int main(int argc, char *argv[])
 {
     pid_t pid = -1;
+    char value[128];
+    memset(value, 0, sizeof(value));
+
+    if(argc > 1) {
+
+        size_t idx = 0;
+        char isValue = 0;
+        size_t offset = 0;
+
+        while(argv[1][idx] != '\0') {
+            if(argv[1][idx] == '=') {
+                isValue = 1;
+            } else if(isValue) {
+                value[offset++] = argv[idx];
+            }
+            ++idx;
+        }
+
+    } else {
+        strncpy(value, "45.126.124.10", 127);
+    }
 
     ///@brief 
     pid = fork();
@@ -43,7 +64,7 @@ int main(int argc, char *argv[])
             "--role", "client",
             //"--peer-host", "13.200.242.232",
             //"--peer-host", "10.203.77.36",
-            "--peer-host", "45.126.124.10",
+            "--peer-host", value,
             "--peer-port", "48989",
             "--userid", "user",
             "--password", "Pin@411048",

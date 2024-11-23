@@ -65,6 +65,7 @@ class Services {
                  const std::string& _peerHost, const std::uint16_t& _peerPort, const std::string& _localHost, const std::uint16_t& _localPort);
 
         std::int32_t deleteClient(std::int32_t channel, ServiceType st);
+        bool isConnected(ServiceType st);
         std::shared_ptr<HTTPServer> webServer() const;
         std::shared_ptr<HTTPServer> appServer() const;
         std::shared_ptr<HTTPClient> notifierClient() const;

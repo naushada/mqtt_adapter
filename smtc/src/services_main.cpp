@@ -190,7 +190,7 @@ std::int32_t Services::handleDataFromConnectedClient(std::int32_t channel, Servi
             restClient()->onReceive(ss.str());
             if(HTTPClient::HTTPUriName::GetChangeEventsNotification == restClient()->sentURI()) {
                 ///@brief Build payload and send to Notifier Server.
-                if(notifierClient()) {
+                if(isConnected(ServiceType::ServiceNotifier)) {
                     auto notify = json::object();
                     notify = {
                         {"product", restClient()->model()},
@@ -246,6 +246,19 @@ std::int32_t Services::handleClientConnection(std::int32_t handle, ServiceType s
         }
     }
     return(-2);
+}
+
+bool Services::isConnected(ServiceType st) {
+    auto it = std::find_if(m_events.begin(), m_events.end(), [&](auto& ent) -> bool {
+        return(st == (((ent.data.u64 & 0xFFFFFFFF) >> 24U) & 0xFF));
+    });
+
+    if(it != m_events.end()) {
+        ConnectionStatus status = static_cast<ConnectionStatus>(it->data.u64 & 0xF);
+        return(status == ConnectionStatus::Connected);
+    }
+
+    return(false);
 }
 
 std::int32_t Services::deleteClient(std::int32_t channel,ServiceType st) {
@@ -593,6 +606,7 @@ Services& Services::start() {
                     //std::cout << "ent.events: EPOLLIN" << std::endl;
                     handleIO(handle, st, sap, stt, sst);
                 }
+
                 if((ent.events & EPOLLOUT) || (ent.events & EPOLLHUP)) {
                     //std::cout <<__FUNCTION__ <<":"<< __LINE__<<":"<<"ent.events: EPOLLOUT" << std::endl;
                     if(!handleClientConnection(handle, st, sap, stt, sst, cs)) {
@@ -605,7 +619,7 @@ Services& Services::start() {
                             std::cout << basename(__FILE__) <<":"<<__FUNCTION__ <<":"<< __LINE__<<":"
                                       <<" Connected to Notifier Server" << std::endl;
                             cs = ConnectionStatus::Connected;
-                            ent.data.u64 = ((elm & 0xFFFFFFFFFFFFFFF0) | (cs &0x0F)); 
+                            ent.data.u64 = ((elm & 0xFFFFFFFFFFFFFFF0) | (cs & 0x0F)); 
                             ent.events = EPOLLHUP|EPOLLIN;
                             ::epoll_ctl(m_epollFd, EPOLL_CTL_MOD, handle, &ent);
                         }
