@@ -200,6 +200,7 @@ int32_t startAndConnectTCPClient(const char* host, uint16_t port) {
                 return(handle);
             }
             // TODO:: Add Error log
+            fprintf(stderr, "%s:%d Unable to connect to Telemetry Server\n", basename(__FILE__), __LINE__);
             close(handle);
             return(-1);
         }
@@ -236,7 +237,7 @@ int main(int argc, char *argv[])
     sleep(2);
     ///@brief 
     if(pipe(Fd)) {
-        fprintf(stdout,"%s:%d %s",__FUNCTION__,__LINE__, "pipe for m_Fd is failed\n");
+        fprintf(stderr,"%s:%d %s",__FUNCTION__,__LINE__, "pipe for m_Fd is failed\n");
         return(-1); 
     }
 
@@ -277,7 +278,6 @@ int main(int argc, char *argv[])
             NULL
         };
 
-        //setpgrp();
         if(execvp(_argv[0], _argv) < 0) {
             printf("%s:%d %s\n", __FUNCTION__, __LINE__,  "Spawning of mosquitto_sub is failed");
             perror("Error:");
@@ -294,7 +294,7 @@ int main(int argc, char *argv[])
         int32_t epollFd = epoll_create1(EPOLL_CLOEXEC);
 
         if(epollFd < 0) {
-            fprintf(stdout,"%s:%d %s",__FUNCTION__,__LINE__, "creation of epollFd failed\n");
+            fprintf(stderr,"%s:%d %s",__FUNCTION__,__LINE__, "creation of epollFd failed\n");
             exit(1);
         }
 
@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
             exit(0);
         }
 
-        fprintf(stderr, "%s:%d Telemetry client Fd:%d\n", __FUNCTION__, __LINE__, connFd);
+        fprintf(stderr, "%s:%d Telemetry client Fd:%d\n", basename(__FILE__), __LINE__, connFd);
         struct epoll_event *clntevt = (struct epoll_event*)malloc(sizeof(struct epoll_event));
 
         if(NULL == clntevt) {
@@ -346,38 +346,41 @@ int main(int argc, char *argv[])
 
                     channel = (elm >> 32) & 0xFFFFFFFFU;
                     svc = (elm >> 24) & 0xFFU;
-                    fprintf(stderr, "%s:%d channel:%d svc:%d\n", __FUNCTION__, __LINE__, channel, (int32_t)svc);
+                    fprintf(stderr, "%s:%d channel:%d svc:%d\n", basename(__FILE__), __LINE__, channel, (int32_t)svc);
 
                     if(activeEvent[idx].events & EPOLLIN) {
                         if(handleIO(channel, svc, evtlist, 3) < 0) {
                             break;
                         }
-                    }
-
-                    if((activeEvent[idx].events & EPOLLOUT) || (activeEvent[idx].events & EPOLLHUP)) {
+                    } else if(activeEvent[idx].events & EPOLLHUP) {
+                        fprintf(stderr, "%s:%d TCP Server is Down ... Attempting the connection\n", basename(__FILE__),__LINE__);
+                        close(channel);
+                        epoll_ctl(epollFd, EPOLL_CTL_DEL, channel, NULL);
+                        int32_t connFd = startAndConnectTCPClient("0.0.0.0", 28989);
+                        if(connFd > 0) {
+                            registerToepoll(epollFd, connFd, SERVICE_TYPE_NOTIFY_TELEMETRY_DATA , evtlist[1]);
+                        }
+                    } else if(activeEvent[idx].events & EPOLLOUT) {
                         struct sockaddr_in peer;
                         socklen_t peer_len = sizeof(peer);
 
                         if(getpeername(channel, (struct sockaddr *)&peer, &peer_len)) {
                             ///@brief Error...
+                            fprintf(stderr, "%s:%d getpeername error:%d\n", basename(__FILE__),__LINE__, errno);
+                            /*
                             if(ENOTCONN == errno) {
                                 int so_error = -1;
                                 socklen_t len = sizeof(so_error);
                                 if(getsockopt(channel, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0) {
-                                    close(channel);
-                                    epoll_ctl(epollFd, EPOLL_CTL_DEL, channel, NULL);
-                                    int32_t connFd = startAndConnectTCPClient("0.0.0.0", 28989);
-                                    if(connFd > 0) {
-                                        registerToepoll(epollFd, connFd, SERVICE_TYPE_NOTIFY_TELEMETRY_DATA , evtlist[1]);
-                                    }
+                                    
                                 } else if(!so_error) {
                                     fprintf(stderr, "%s:%d Connected to TCP Server\n", basename(__FILE__),__LINE__);
                                     activeEvent[idx].events = EPOLLHUP | EPOLLIN;
                                     epoll_ctl(epollFd, EPOLL_CTL_MOD, channel, &activeEvent[idx]);
                                 }
-                            }
+                            }*/
                         } else {
-                            fprintf(stderr, "%s:%d Connected to TCP Server\n", basename(__FILE__),__LINE__);
+                            fprintf(stderr, "%s:%d Connected to TCP Server successfully\n", basename(__FILE__),__LINE__);
                             activeEvent[idx].events = EPOLLHUP | EPOLLIN;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, channel, &activeEvent[idx]);
                         }

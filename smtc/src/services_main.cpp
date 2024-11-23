@@ -32,7 +32,7 @@ std::int32_t Services::handleDataFromConnectedClient(std::int32_t channel, Servi
             break;
         case ServiceType::ServiceTelemetryConnectedClient:
             std::cout << basename(__FILE__) <<":" <<__FUNCTION__ <<":" << __LINE__
-                      <<" For Telemetry Fd:" << channel << " sst:" << std::to_string(sst) << std::endl;
+                      <<" From Telemetry Client on Fd:" << channel << " sst:" << std::to_string(sst) << std::endl;
             clnt = telemetryServer()->get_client(channel);
             break;
         case ServiceType::ServiceWebConnectedClient:
