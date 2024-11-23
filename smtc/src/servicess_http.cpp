@@ -104,6 +104,7 @@ std::int32_t HTTPClient::onReceive(const std::string& out) {
 
     //std::cout << __FUNCTION__<<":"<<__LINE__ << "Request:" << req << std::endl;
     std::string rsp = processRequestAndBuildResponse(out);
+    std::cout << __FUNCTION__<<":"<<__LINE__ << "Request sent:" << rsp << std::endl;
     if(!rsp.empty()) {
         tls()->write(rsp, rsp.length());
     }

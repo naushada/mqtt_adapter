@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
             if(argv[1][idx] == '=') {
                 isValue = 1;
             } else if(isValue) {
-                value[offset++] = argv[idx];
+                value[offset++] = argv[1][idx];
             }
             ++idx;
         }

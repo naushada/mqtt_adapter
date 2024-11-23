@@ -143,6 +143,9 @@ std::int32_t Services::handleDataFromConnectedClient(std::int32_t channel, Servi
                 deleteClient(channel, st);
                 ///@brief Attempt to Connect to Command & Control Centre.
                 createNotifierClient(IPPROTO_TCP, false, true, peerHost, peerPort, localHost, localPort);
+            } else {
+                /// @brief This is the case for running role=server and connected client is closed.
+                deleteClient(channel, st);
             }
         } else {
             std::cout <<basename(__FILE__) <<":" <<__FUNCTION__ <<":"<< __LINE__<<":"
@@ -218,12 +221,12 @@ std::int32_t Services::handleClientConnection(std::int32_t handle, ServiceType s
 
         if(getpeername(handle, (struct sockaddr *)&peer, &peer_len)) {
             ///@brief Error...
-            std::cerr << "getpeername failed: " << strerror(errno) << std::endl;
+            std::cout << basename(__FILE__) << ":"<<__FUNCTION__ <<":" << __LINE__ <<":"<< " getpeername failed: " << strerror(errno) << std::endl;
             if(ENOTCONN == errno) {
-                int so_error = -1;
-                socklen_t len = sizeof(so_error);
-                if(getsockopt(handle, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0) {
-                    std::cerr << "getsockopt failed: " << strerror(errno) << std::endl;
+                //int so_error = -1;
+                //socklen_t len = sizeof(so_error);
+                //if(getsockopt(handle, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0) {
+                //    std::cerr << "getsockopt failed: " << strerror(errno) << std::endl;
                     std::string peerHost = notifierClient()->peerHost();
                     std::string localHost = notifierClient()->peerHost();
                     std::uint16_t peerPort = notifierClient()->peerPort();
@@ -236,10 +239,10 @@ std::int32_t Services::handleClientConnection(std::int32_t handle, ServiceType s
                         createNotifierClient(IPPROTO_TCP, false, true, peerHost, peerPort, localHost, localPort);
                     }
                     return(-1);
-                } else if(!so_error) {
-                    std::cout << basename(__FILE__) << ":"<<__FUNCTION__ <<":" << __LINE__ <<":" << "Notifier Client is connected" << std::endl;
-                    return(0);
-                }
+                //} else if(!so_error) {
+                //    std::cout << basename(__FILE__) << ":"<<__FUNCTION__ <<":" << __LINE__ <<":" << "Notifier Client is connected" << std::endl;
+                //    return(0);
+                //}
             }
         } else {
             return(0);
@@ -267,7 +270,7 @@ std::int32_t Services::deleteClient(std::int32_t channel,ServiceType st) {
     }
 
     ::epoll_ctl(m_epollFd, EPOLL_CTL_DEL, channel, nullptr);
-    std::remove_if(m_events.begin(), m_events.end(), [&](auto& ent) -> bool {
+    auto it = std::remove_if(m_events.begin(), m_events.end(), [&](auto& ent) -> bool {
         return(channel == static_cast<std::int32_t>(((ent.data.u64 & 0xFFFFFFFF00000000) >> 32) & 0xFFFFFFFF));
     });
 
@@ -605,10 +608,13 @@ Services& Services::start() {
                 if(ent.events & EPOLLIN) {
                     //std::cout << "ent.events: EPOLLIN" << std::endl;
                     handleIO(handle, st, sap, stt, sst);
-                }
-
-                if((ent.events & EPOLLOUT) || (ent.events & EPOLLHUP)) {
-                    //std::cout <<__FUNCTION__ <<":"<< __LINE__<<":"<<"ent.events: EPOLLOUT" << std::endl;
+                } else if(/*(ent.events & EPOLLERR) || */(ent.events & EPOLLHUP)) {
+                    ///Error on socket.
+                    std::cout << basename(__FILE__) <<":" <<__FUNCTION__ <<":"<< __LINE__<<":"
+                              <<" ent.events: EPOLLHUP" << std::endl;
+                    handleClientConnection(handle, st, sap, stt, sst, cs);
+                } else if(ent.events & EPOLLOUT) {
+                    std::cout <<basename(__FILE__) <<":"<< __LINE__<<":"<<" ent.events: EPOLLOUT" << std::endl;
                     if(!handleClientConnection(handle, st, sap, stt, sst, cs)) {
                         if(ServiceType::ServiceClient == st) {
                             std::cout << basename(__FILE__) <<":" <<__FUNCTION__ <<":"<< __LINE__<<":"
@@ -624,13 +630,7 @@ Services& Services::start() {
                             ::epoll_ctl(m_epollFd, EPOLL_CTL_MOD, handle, &ent);
                         }
                     }
-                }
-                if(ent.events & EPOLLERR) {
-                    ///Error on socket.
-                    std::cout << basename(__FILE__) <<":" <<__FUNCTION__ <<":"<< __LINE__<<":"
-                              <<" ent.events: EPOLLERR" << std::endl;
-                }
-                if(ent.events & EPOLLET) {
+                } else if(ent.events & EPOLLET) {
                     std::cout << basename(__FILE__) <<":" <<__FUNCTION__ <<":"<< __LINE__<<":"
                               <<" ent.events: EPOLLET" << std::endl;
                 }
