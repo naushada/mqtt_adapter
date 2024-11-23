@@ -312,7 +312,7 @@ int main(int argc, char *argv[])
         int32_t connFd = startAndConnectTCPClient("0.0.0.0", 28989);
 
         if(connFd < 0) {
-            fprintf(stderr, "%s:%d Connect to Telemetry Server Failed for Vehicle Data\n", bansename(__FILE__), __LINE__);
+            fprintf(stderr, "%s:%d Connect to Telemetry Server Failed for Vehicle Data\n", basename(__FILE__), __LINE__);
             exit(0);
         }
 
