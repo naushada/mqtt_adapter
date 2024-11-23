@@ -28,6 +28,7 @@
 #include <string.h>
 #include <sys/signalfd.h>
 #include <signal.h>
+#include <libgen.h>
 
 typedef union {
     unsigned int num;
