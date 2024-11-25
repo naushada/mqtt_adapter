@@ -213,6 +213,28 @@ int main(int argc, char *argv[])
     int32_t Fd[2];
     pid_t pid;
 
+    char topic[128];
+    memset(topic, 0, sizeof(topic));
+
+    if(argc > 1) {
+
+        size_t idx = 0;
+        char isValue = 0;
+        size_t offset = 0;
+        /* e.g. --topic=<topic> */
+        while(argv[1][idx] != '\0') {
+            if(argv[1][idx] == '=') {
+                isValue = 1;
+            } else if(isValue) {
+                topic[offset++] = argv[1][idx];
+            }
+            ++idx;
+        }
+
+    } else {
+        strncpy(topic, "#", 1);
+    }
+    
     ///@brief 
     pid = fork();
     if(!pid) {
@@ -261,7 +283,7 @@ int main(int argc, char *argv[])
             "/opt/app/mosquitto_sub",
             "-t",
             ///@brief Topic to be subscribed
-            "Vehicle",
+            topic,
             ///@brief For verbose output.
             "-v",
             "-h",

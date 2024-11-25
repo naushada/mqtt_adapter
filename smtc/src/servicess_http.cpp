@@ -367,6 +367,7 @@ void HTTPClient::processKeyValue(std::string const& key, json value) {
         m_longitude = std::to_string(value.get<double>());
     } else if(!key.compare(0, 26, "device.provisioning.serial") && !value.empty()) {
         m_serialNumber = value.get<std::string>();
+        fprintf(stderr, "%d %s", m_serialNumber.length(), m_serialNumber.c_str());
     } else if(!key.compare(0, 14, "device.product") && !value.empty()) {
         m_model = value.get<std::string>();
     }

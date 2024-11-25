@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
         size_t idx = 0;
         char isValue = 0;
         size_t offset = 0;
-
+        /* e.g. --peer-host=<ip address> */
         while(argv[1][idx] != '\0') {
             if(argv[1][idx] == '=') {
                 isValue = 1;
@@ -55,10 +55,33 @@ int main(int argc, char *argv[])
         strncpy(value, "45.126.124.10", 127);
     }
 
+    int32_t Fd[2];
+    if(pipe(Fd)) {
+        fprintf(stderr,"%s:%d %s",basename(__FILE__),__LINE__, " pipe for m_Fd is failed\n");
+        return(-1); 
+    }
+
+    char *buff = NULL;
+    ssize_t len;
+    int32_t offset = 0;
+    char onebyte;
+    char length_str[256];
+    memset(length_str, 0, sizeof(length_str));
+
     ///@brief 
     pid = fork();
     if(!pid) {
+
         ///@brief This is a Child Process.
+        if(Fd[0] > 0) {
+            close(Fd[0]);
+        }
+
+        if((Fd[1] > 0) && (dup2(Fd[1], 2)) < 0) {
+            perror("dup2: Failed to map stderr");
+            return(-1);
+        }
+        
         char* _argv[] = {
             "/opt/app/smtc",
             "--role", "client",
@@ -78,10 +101,41 @@ int main(int argc, char *argv[])
             perror("Error:");
         }
     } else {
-        sleep(2);
+        if(Fd[1] > 0) {
+            close(Fd[1]);
+        }
+
+        if((Fd[0] > 0) && (dup2(Fd[0], 0)) < 0) {
+            perror("dup2: Failed to map stderr");
+            return(-1);
+        }
+
+        while(1) {
+            len = read(Fd[0], (void *)&onebyte, 1);
+            if(len > 0 && ' ' == onebyte) 
+                break;
+            length_str[offset++] = onebyte;
+        }
+
+        uint32_t content_length = atoi(length_str);
+        offset = 0;
+        buff = (char *)malloc(content_length+1);
+        if(NULL != buff) {
+            memset(buff, 0, content_length+1);
+
+            while(offset != (content_length)) {
+                len = read(Fd[0], (void *)&buff[offset], (content_length - offset));
+                offset += len;
+                if(len < 0) break;
+            }
+        }
+
+        close(Fd[0]);
+
         ///@brief This is Parent
         char* _argv[] = {
             "/opt/app/mqtt_adapter",
+            "--topic", buff,
             NULL
         };
 
