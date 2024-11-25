@@ -129,7 +129,9 @@ int main(int argc, char *argv[])
                 if(len < 0) break;
             }
         }
-
+        buff[offset++] = '/';
+        buff[offset++] = '#';
+        buff[offset] = '\0';
         close(Fd[0]);
 
         ///@brief This is Parent
