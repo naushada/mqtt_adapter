@@ -210,31 +210,7 @@ int32_t startAndConnectTCPClient(const char* host, uint16_t port) {
 
 int main(int argc, char *argv[])
 {
-    int32_t Fd[2];
     pid_t pid;
-
-    char topic[128];
-    memset(topic, 0, sizeof(topic));
-
-    if(argc > 1) {
-
-        size_t idx = 0;
-        char isValue = 0;
-        size_t offset = 0;
-        /* e.g. --topic=<topic> */
-        while(argv[1][idx] != '\0') {
-            if(argv[1][idx] == '=') {
-                isValue = 1;
-            } else if(isValue) {
-                topic[offset++] = argv[1][idx];
-            }
-            ++idx;
-        }
-
-    } else {
-        strncpy(topic, "#", 1);
-    }
-    
     ///@brief 
     pid = fork();
     if(!pid) {
@@ -249,17 +225,18 @@ int main(int argc, char *argv[])
             NULL
         };
 
-        //setpgrp();
         if(execvp(_argv[0], _argv) < 0) {
-            fprintf(stderr, "%s:%d %s\n", basename(__FILE__), __LINE__,  "Spawning of mosquitto is failed");
+            fprintf(stderr, "%s:%d %s\n", basename(__FILE__), __LINE__,  "Spawning of mosquitto broker is failed");
             perror("Error:");
         }
     }
 
+    /* let mosquitto broker settled down so that subscriber will be able to connect to broker. */
     sleep(2);
-    ///@brief 
+    int32_t Fd[2];
+    ///@brief Parent process
     if(pipe(Fd)) {
-        fprintf(stderr,"%s:%d %s",__FUNCTION__,__LINE__, "pipe for m_Fd is failed\n");
+        fprintf(stderr,"%s:%d %s",__FUNCTION__,__LINE__, "pipe for Fd is failed\n");
         return(-1); 
     }
 
@@ -283,7 +260,7 @@ int main(int argc, char *argv[])
             "/opt/app/mosquitto_sub",
             "-t",
             ///@brief Topic to be subscribed
-            topic,
+            argv[2],
             ///@brief For verbose output.
             "-v",
             "-h",
@@ -380,7 +357,7 @@ int main(int argc, char *argv[])
                         epoll_ctl(epollFd, EPOLL_CTL_DEL, channel, NULL);
                         int32_t connFd = startAndConnectTCPClient("0.0.0.0", 28989);
                         if(connFd > 0) {
-                            registerToepoll(epollFd, connFd, SERVICE_TYPE_NOTIFY_TELEMETRY_DATA , evtlist[1]);
+                            registerToepoll(epollFd, connFd, SERVICE_TYPE_NOTIFY_TELEMETRY_DATA , clntevt);
                         }
                     } else if(activeEvent[idx].events & EPOLLOUT) {
                         struct sockaddr_in peer;
@@ -403,8 +380,8 @@ int main(int argc, char *argv[])
                             }*/
                         } else {
                             fprintf(stderr, "%s:%d Connected to TCP Server successfully\n", basename(__FILE__),__LINE__);
-                            activeEvent[idx].events = EPOLLHUP | EPOLLIN;
-                            activeEvent[idx].data.u64 = elm;
+                            clntevt->data.u64 = elm;
+                            clntevt->events = EPOLLHUP | EPOLLIN;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, channel, clntevt);
                         }
                     }

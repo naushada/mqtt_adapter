@@ -85,8 +85,6 @@ int main(int argc, char *argv[])
         char* _argv[] = {
             "/opt/app/smtc",
             "--role", "client",
-            //"--peer-host", "13.200.242.232",
-            //"--peer-host", "10.203.77.36",
             "--peer-host", value,
             "--peer-port", "48989",
             "--userid", "user",
@@ -101,15 +99,12 @@ int main(int argc, char *argv[])
             perror("Error:");
         }
     } else {
+        ///@brief This is a Parent process.
         if(Fd[1] > 0) {
             close(Fd[1]);
         }
 
-        if((Fd[0] > 0) && (dup2(Fd[0], 0)) < 0) {
-            perror("dup2: Failed to map stderr");
-            return(-1);
-        }
-
+        /*The input received has this format length value, the delimiter between length and value is ' ' (space)*/
         while(1) {
             len = read(Fd[0], (void *)&onebyte, 1);
             if(len > 0 && ' ' == onebyte) 
@@ -117,14 +112,14 @@ int main(int argc, char *argv[])
             length_str[offset++] = onebyte;
         }
 
-        uint32_t content_length = atoi(length_str);
+        uint32_t length = atoi(length_str);
         offset = 0;
-        buff = (char *)malloc(content_length+1);
+        buff = (char *)malloc(length+8);
         if(NULL != buff) {
-            memset(buff, 0, content_length+1);
+            memset(buff, 0, length+8);
 
-            while(offset != (content_length)) {
-                len = read(Fd[0], (void *)&buff[offset], (content_length - offset));
+            while(offset != length) {
+                len = read(Fd[0], (void *)&buff[offset], (length - offset));
                 offset += len;
                 if(len < 0) break;
             }
@@ -132,7 +127,6 @@ int main(int argc, char *argv[])
         buff[offset++] = '/';
         buff[offset++] = '#';
         buff[offset] = '\0';
-        close(Fd[0]);
 
         ///@brief This is Parent
         char* _argv[] = {
