@@ -235,8 +235,9 @@ int main(int argc, char *argv[])
             close(mFd[0]);
         }
 
+        /* @brief override stderr stream of child process with mFd[1] */
         if((mFd[1] > 0) && (dup2(mFd[1], 2)) < 0) {
-            perror("dup2: Failed to map stdout");
+            perror("dup2: Failed to map stderr\n");
             return(-1);
         }
 
@@ -246,6 +247,7 @@ int main(int argc, char *argv[])
         }
     }
 
+    /* @brief Start mosquitto_sub - i.e. subscriber to broker only when broker is running */
     if(mFd[1] > 0) {
         close(mFd[1]);
     }
@@ -255,14 +257,16 @@ int main(int argc, char *argv[])
     char word[128];
     ssize_t offset = 0;
     memset(word, 0, sizeof(word));
-
+    /* @brief Start receiving mosquitto_broker stderr output to parent process. once mosquitto broker running, it prints to stderr "running" */
     while(1) {
+        /* let mosquitto broker settled down so that subscriber will be able to connect to broker. */
         len = read(mFd[0], (void *)&onebyte, 1);
         if(len > 0 && ' ' == onebyte) {
             offset = 0;
             memset(word, 0, sizeof(word));
             continue;
         } else if(len > 0 && '\n' == onebyte) {
+            /*@brief broker is running, we can start mosquitto_sub - subscriber now. */
             if(!strncmp("running", word, 7)) {
                 close(mFd[0]);
                 break;
@@ -273,9 +277,7 @@ int main(int argc, char *argv[])
             word[offset++] = onebyte;
         }
     }
-
-    /* let mosquitto broker settled down so that subscriber will be able to connect to broker. */
-    //sleep(2);
+    
     int32_t Fd[2];
     ///@brief Parent process
     if(pipe(Fd)) {
@@ -345,6 +347,7 @@ int main(int argc, char *argv[])
         if(NULL == signalevt) {
             return(-1);
         }
+
         evtlist[0] = signalevt;
         if(createAndRegisterSignal(epollFd, signalevt) < 0) {
             free(signalevt);
@@ -372,6 +375,7 @@ int main(int argc, char *argv[])
         if(NULL == mqttsub) {
             exit(1);
         }
+
         evtlist[2] = mqttsub;
         ret = registerToepoll(epollFd, Fd[0], SERVICE_TYPE_TELEMETRY, mqttsub);
 
