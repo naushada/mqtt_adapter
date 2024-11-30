@@ -83,7 +83,7 @@ static char* getData(int32_t channel, int32_t length) {
     return(NULL);
 }
 
-static int32_t sentToPeer(int32_t handle, const char* data, int32_t length) {
+static int32_t sendToPeer(int32_t handle, const char* data, int32_t length) {
     ssize_t offset = 0;
     int32_t ret = -1;
 
@@ -100,6 +100,33 @@ static int32_t sentToPeer(int32_t handle, const char* data, int32_t length) {
     return(offset);
 }
 
+static void waitUntilBrokerReady(int32_t channel) {
+    ssize_t len = 0;
+    char onebyte;
+    char word[128];
+    ssize_t offset = 0;
+    memset(word, 0, sizeof(word));
+    /* @brief Start receiving mosquitto_broker stderr output to parent process. once mosquitto broker running, it prints to stderr "running" */
+    while(1) {
+        /* let mosquitto broker settled down so that subscriber will be able to connect to broker. */
+        len = read(channel, (void *)&onebyte, 1);
+        if(len > 0 && ' ' == onebyte) {
+            offset = 0;
+            memset(word, 0, sizeof(word));
+            continue;
+        } else if(len > 0 && '\n' == onebyte) {
+            /*@brief broker is running, we can start mosquitto_sub - subscriber now. */
+            if(!strncmp("running", word, 7)) {
+                close(channel);
+                break;
+            }
+        } else if(offset >= sizeof(word)) {
+            offset = 0;
+        } else {
+            word[offset++] = onebyte;
+        }
+    }
+}
 static int32_t handleIO(int32_t channel, service_type_t svc, struct epoll_event *evtlist[], int32_t evtCount) {
     switch (svc)
     {
@@ -215,7 +242,7 @@ int32_t startAndConnectTCPClient(const char* host, uint16_t port) {
         ret = connect(handle, (struct sockaddr *)&peerAddr, sizeof(peerAddr));
         if(ret < 0) {
             if(EINPROGRESS == errno) {
-                fprintf(stderr, "%s:%d connecting to Telemetry server on port 28989 is in-progress\n", basename(__FILE__), __LINE__);
+                fprintf(stderr, "%s:%d connecting to Telemetry server on port 28989 is in progress...\n", basename(__FILE__), __LINE__);
                 return(handle);
             }
             // TODO:: Add Error log
@@ -263,6 +290,7 @@ int main(int argc, char *argv[])
         if(execvp(_argv[0], _argv) < 0) {
             fprintf(stderr, "%s:%d %s\n", basename(__FILE__), __LINE__,  "Spawning of mosquitto broker is failed");
             perror("Error:");
+            close(mFd[1]);
         }
     }
 
@@ -271,32 +299,7 @@ int main(int argc, char *argv[])
         close(mFd[1]);
     }
 
-    ssize_t len = 0;
-    char onebyte;
-    char word[128];
-    ssize_t offset = 0;
-    memset(word, 0, sizeof(word));
-    /* @brief Start receiving mosquitto_broker stderr output to parent process. once mosquitto broker running, it prints to stderr "running" */
-    while(1) {
-        /* let mosquitto broker settled down so that subscriber will be able to connect to broker. */
-        len = read(mFd[0], (void *)&onebyte, 1);
-        if(len > 0 && ' ' == onebyte) {
-            offset = 0;
-            memset(word, 0, sizeof(word));
-            continue;
-        } else if(len > 0 && '\n' == onebyte) {
-            /*@brief broker is running, we can start mosquitto_sub - subscriber now. */
-            if(!strncmp("running", word, 7)) {
-                close(mFd[0]);
-                break;
-            }
-        } else if(offset >= sizeof(word)) {
-            offset = 0;
-        } else {
-            word[offset++] = onebyte;
-        }
-    }
-    
+    waitUntilBrokerReady(mFd[0]);
     int32_t Fd[2];
     ///@brief Parent process
     if(pipe(Fd)) {

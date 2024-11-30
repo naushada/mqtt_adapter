@@ -51,6 +51,7 @@ static int32_t getHandle(service_type_t svt, struct epoll_event *evt[], int32_t 
 static int32_t handleIO(int32_t channel, service_type_t svc, struct epoll_event *evtlist[], int32_t evtCount);
 static int32_t getLength(int32_t channel);
 static char* getData(int32_t channel, int32_t length);
-static int32_t sentToPeer(int32_t channel, const char* data, int32_t length);
+static int32_t sendToPeer(int32_t channel, const char* data, int32_t length);
+static void waitUntilBrokerReady(int32_t channel);
 
 #endif /*__adapter_h__*/
