@@ -211,6 +211,12 @@ int32_t startAndConnectTCPClient(const char* host, uint16_t port) {
 int main(int argc, char *argv[])
 {
     pid_t pid;
+    int32_t mFd[2];
+    if(pipe(mFd)) {
+        fprintf(stderr,"%s:%d %s",__FUNCTION__,__LINE__, "pipe for Fd is failed\n");
+        return(-1); 
+    }
+
     ///@brief 
     pid = fork();
     if(!pid) {
@@ -225,14 +231,51 @@ int main(int argc, char *argv[])
             NULL
         };
 
+        if(mFd[0] > 0) {
+            close(mFd[0]);
+        }
+
+        if((mFd[1] > 0) && (dup2(mFd[1], 1)) < 0) {
+            perror("dup2: Failed to map stdout");
+            return(-1);
+        }
+
         if(execvp(_argv[0], _argv) < 0) {
             fprintf(stderr, "%s:%d %s\n", basename(__FILE__), __LINE__,  "Spawning of mosquitto broker is failed");
             perror("Error:");
         }
     }
 
+    if(mFd[1] > 0) {
+        close(mFd[1]);
+    }
+
+    ssize_t len = 0;
+    char onebyte;
+    char word[128];
+    ssize_t offset = 0;
+    memset(word, 0, sizeof(word));
+
+    while(1) {
+        len = read(mFd[0], (void *)&onebyte, 1);
+        if(len > 0 && ' ' == onebyte) {
+            offset = 0;
+            memset(word, 0, sizeof(word));
+            continue;
+        } else if(len > 0 && '\n' == onebyte) {
+            if(!strncmp("running", word, 7)) {
+                close(mFd[0]);
+                break;
+            }
+        } else if(offset >= sizeof(word)) {
+            offset = 0;
+        } else {
+            word[offset++] = onebyte;
+        }
+    }
+
     /* let mosquitto broker settled down so that subscriber will be able to connect to broker. */
-    sleep(2);
+    //sleep(2);
     int32_t Fd[2];
     ///@brief Parent process
     if(pipe(Fd)) {
