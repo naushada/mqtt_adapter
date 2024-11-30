@@ -41,38 +41,76 @@ static int32_t modifyEpoll(int32_t epollFd, int32_t fd, service_type_t svt, int3
     return(0);
 }
 
+static int32_t getLength(int32_t channel) {
+    ssize_t len;
+    int32_t offset = 0;
+    char onebyte;
+    char length_str[256];
+    memset(length_str, 0, sizeof(length_str));
+
+    while(1) {
+        len = read(channel, (void *)&onebyte, 1);
+        if(len > 0 && '{' == onebyte) {
+            return(atoi(length_str));
+        } else if( offset >= sizeof(length_str)) {
+            memset(length_str, 0, sizeof(length_str));
+            offset = 0;
+        } else {
+            length_str[offset++] = onebyte;
+        }
+    }
+    return(0);
+}
+
+static char* getData(int32_t channel, int32_t length) {
+    char *buff = NULL;
+    ssize_t len;
+    ssize_t offset = 0;
+    buff = (char *)malloc(length);
+    if(NULL != buff) {
+
+        memset(buff, 0, length);
+        buff[offset] = '{';
+
+        while(offset != (length-1)) {
+            len = read(channel, (void *)&buff[1+offset], ((length-1) - offset));
+            offset += len;
+            if(len < 0) break;
+        }
+        return(buff);
+    }
+
+    return(NULL);
+}
+
+static int32_t sentToPeer(int32_t handle, const char* data, int32_t length) {
+    ssize_t offset = 0;
+    int32_t ret = -1;
+
+    while(offset != length) {
+        ret = send(handle, data+offset, length-offset, 0);
+        if(ret > 0) {
+            offset += ret;
+            continue;
+        }
+
+        fprintf(stderr, "%s:%d send to channel:%d failed\n", __FUNCTION__, __LINE__, handle);
+        break;
+    }
+    return(offset);
+}
+
 static int32_t handleIO(int32_t channel, service_type_t svc, struct epoll_event *evtlist[], int32_t evtCount) {
     switch (svc)
     {
     case SERVICE_TYPE_TELEMETRY:
     {
         char *buff = NULL;
-        ssize_t len;
-        int32_t offset = 0;
-        char onebyte;
-        char length_str[256];
-        memset(length_str, 0, sizeof(length_str));
-
-        while(1) {
-            len = read(channel, (void *)&onebyte, 1);
-            if(len > 0 && '{' == onebyte) 
-                break;
-            length_str[offset++] = onebyte;
-        }
-
-        uint32_t content_length = atoi(length_str);
-        offset = 0;
-        buff = (char *)malloc(content_length);
+        ssize_t offset = 0;
+        int32_t len = 0;
+        uint32_t content_length = getLength(channel);
+        buff = getData(channel, content_length);
         if(NULL != buff) {
-            memset(buff, 0, content_length);
-            buff[offset] = '{';
-
-            while(offset != (content_length-1)) {
-                len = read(channel, (void *)&buff[1+offset], ((content_length-1) - offset));
-                offset += len;
-                if(len < 0) break;
-            }
-
             char cl[256];
             memset(cl, 0, sizeof(cl));
             ssize_t cnt = snprintf(cl, sizeof(cl)-1, "Content-Length: %d\r\n", content_length);
@@ -102,30 +140,11 @@ static int32_t handleIO(int32_t channel, service_type_t svc, struct epoll_event 
 
                 if(handle > 0) {
                     /*sending header*/
-                    len = offset;
-                    offset = 0;
-                    while(offset != len) {
-                        ret = send(handle, hdr+offset, len-offset, 0);
-                        if(ret > 0) {
-                            offset += ret;
-                            continue;
-                        }
-                        fprintf(stderr, "%s:%d send to channel:%d failed\n", __FUNCTION__, __LINE__, channel);
-                        break;
-                    }
+                    len = sendToPeer(handle, hdr, offset);
                     free(hdr);
                     fprintf(stderr, "%s:%d sent bytes(header):%d\n", __FUNCTION__, __LINE__, offset);
                     /*send payload/contents*/
-                    offset = 0;
-                    while(offset != content_length) {
-                        ret = send(handle, (void *)&buff[offset], content_length-offset, 0);
-                        if(ret > 0) {
-                            offset += ret;
-                            continue;
-                        }
-                        fprintf(stderr, "%s:%d send to channel:%d failed\n", __FUNCTION__, __LINE__, channel);
-                        break;
-                    }
+                    len = sendToPeer(handle, buff, content_length);
                     free(buff);
                     fprintf(stderr, "%s:%d sent bytes(body):%d\n", __FUNCTION__, __LINE__, offset);
                 }
