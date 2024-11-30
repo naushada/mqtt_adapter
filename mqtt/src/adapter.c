@@ -235,7 +235,7 @@ int main(int argc, char *argv[])
             close(mFd[0]);
         }
 
-        if((mFd[1] > 0) && (dup2(mFd[1], 1)) < 0) {
+        if((mFd[1] > 0) && (dup2(mFd[1], 2)) < 0) {
             perror("dup2: Failed to map stdout");
             return(-1);
         }
