@@ -448,7 +448,7 @@ int main(int argc, char *argv[])
                                 }
                             }*/
                         } else {
-                            fprintf(stderr, "%s:%d Connected to TCP Server successfully\n", basename(__FILE__),__LINE__);
+                            fprintf(stderr, "%s:%d Connected to Telemetry Server successfully\n", basename(__FILE__),__LINE__);
                             clntevt->data.u64 = elm;
                             clntevt->events = EPOLLHUP | EPOLLIN;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, channel, clntevt);

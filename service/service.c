@@ -29,16 +29,18 @@
 #include <sys/signalfd.h>
 #include <signal.h>
 
-static char* getPeerHost(char* argv[]) {
+static char* getPeerHost(char* argv[], int32_t at) {
     char *value = (char *)malloc(256);
     size_t idx = 0;
     char isValue = 0;
     size_t offset = 0;
 
+    if(NULL == value) return(NULL);
+
     memset(value, 0, sizeof(value));
     /* e.g. --peer-host=<ip address> */
-    while(argv[1][idx] != '\0') {
-        if(argv[1][idx] == '=') {
+    while(argv[at][idx] != '\0') {
+        if(argv[at][idx] == '=') {
             isValue = 1;
         } else if(isValue) {
             value[offset++] = argv[1][idx];
@@ -49,6 +51,13 @@ static char* getPeerHost(char* argv[]) {
     return(value);
 }
 
+/**
+ * @brief This Function reads the input format %d %s, where %d is for length , %s for data of fixed length indicated by %d length.
+ *        It first reads the length and then allocated memory for length size and then reads data of that length into that memory.
+ *        The delimeter between length and data is space.
+ * @param channel reading length and data on this channel/fd.
+ * @return memory allocated from heap will have value and caller must free the heap memory if it's not NULL.
+ */
 static char* getTopic(int32_t channel) {
     char *buff = NULL;
     ssize_t len;
@@ -56,6 +65,7 @@ static char* getTopic(int32_t channel) {
     char onebyte;
     char length_str[256];
     memset(length_str, 0, sizeof(length_str));
+
     /*The input received has this format length value, the delimiter between length and value is ' ' (space)*/
     while(1) {
         len = read(channel, (void *)&onebyte, 1);
@@ -66,6 +76,7 @@ static char* getTopic(int32_t channel) {
 
     uint32_t length = atoi(length_str);
     offset = 0;
+
     buff = (char *)malloc(length+8);
     if(NULL != buff) {
         memset(buff, 0, length+8);
@@ -90,7 +101,8 @@ int main(int argc, char *argv[])
     char *value = NULL;
     char host[256];
     if(argc > 1) {
-        value = getPeerHost(argv);
+        int32_t at = 1;
+        value = getPeerHost(argv, at);
         strncpy(host, value, sizeof(host));
         free(value);
     }
@@ -108,6 +120,13 @@ int main(int argc, char *argv[])
         if(Fd[0] > 0) {
             close(Fd[0]);
         }
+
+        /**
+         * @brief map stderr stream of smtc process to Fd[1], If smtc process writes anything
+         *        at stderr stream it will be delivered to Fd[1] stream/file descriptor.Anything
+         *        received at Fd[1] will be available to Fd[0] to other process, This way we can establish the inter process 
+         *        communication between processes.
+         */
 
         if((Fd[1] > 0) && (dup2(Fd[1], 2)) < 0) {
             perror("dup2: Failed to map stderr");
@@ -137,11 +156,14 @@ int main(int argc, char *argv[])
             close(Fd[1]);
         }
 
-        char *value = getTopic(Fd[0]);
         char topic[256];
-        memset(topic, 0, sizeof(topic));
-        strncpy(topic, value, sizeof(topic));
-        free(value);
+        char *value = getTopic(Fd[0]);
+
+        if(NULL != value) {
+            memset(topic, 0, sizeof(topic));
+            strncpy(topic, value, sizeof(topic));
+            free(value);
+        }
 
         ///@brief This is Parent
         char* _argv[] = {
