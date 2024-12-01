@@ -75,11 +75,11 @@ static char* getTopic(int32_t channel) {
             offset += len;
             if(len < 0) break;
         }
-    }
 
-    buff[offset++] = '/';
-    buff[offset++] = '#';
-    buff[offset] = '\0';
+        buff[offset++] = '/';
+        buff[offset++] = '#';
+        buff[offset] = '\0';
+    }
 
     return(buff);
 }
