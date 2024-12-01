@@ -628,6 +628,22 @@ Services& Services::start() {
                             ent.data.u64 = ((elm & 0xFFFFFFFFFFFFFFF0) | (cs & 0x0F)); 
                             ent.events = EPOLLHUP|EPOLLIN;
                             ::epoll_ctl(m_epollFd, EPOLL_CTL_MOD, handle, &ent);
+                            auto notify = json::object();
+
+                            /* send last known location to CnC - Command And Control */
+                            if(nullptr != restClient()) {
+                                notify = {
+                                    {"product", restClient()->model()},
+                                    {"endPoint", restClient()->serialNumber()},
+                                    {"latitude", restClient()->latitude()},
+                                    {"longitude", restClient()->longitude()}
+                                };
+
+                                auto req = restClient()->buildHeader(HTTPClient::HTTPUriName::NotifyLocation, notify.dump());
+                                auto len = notifierClient()->tx(req);
+                                std::cout << basename(__FILE__) <<":" <<__FUNCTION__<<":" << __LINE__
+                                        <<" Location Data sent to Command & Control\n"<< req << std::endl;
+                            }
                         }
                     }
                 } else if(ent.events & EPOLLET) {
