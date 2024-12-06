@@ -29,6 +29,8 @@
 #include <sys/signalfd.h>
 #include <signal.h>
 
+static char* getValue(char* argv[], int32_t at);
+
 static char* getPeerHost(char* argv[]) {
     return(getValue(argv, 1));
 }
@@ -120,9 +122,9 @@ static char* getTopic(int32_t channel) {
 int main(int argc, char *argv[])
 {
     if(argc < 3) {
-        fprintf(stderr,"%s:%d %s",basename(__FILE__),__LINE__, " Invalid number of commandline arguments\n"
+        fprintf(stderr,"%s:%d %s%d",basename(__FILE__),__LINE__, " Invalid number of commandline arguments\n"
                        "--peer-host=<> --user=<> --password=<>\n"
-                       "argc:%d\n", argc);
+                       "argc:", argc);
         return(-1); 
     }
 
