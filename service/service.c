@@ -29,7 +29,19 @@
 #include <sys/signalfd.h>
 #include <signal.h>
 
-static char* getPeerHost(char* argv[], int32_t at) {
+static char* getPeerHost(char* argv[]) {
+    return(getValue(argv, 1));
+}
+
+static char* getUser(char* argv[]) {
+    return(getValue(argv, 2));
+}
+
+static char* getPassword(char* argv[]) {
+    return(getValue(argv, 3));
+}
+
+static char* getValue(char* argv[], int32_t at) {
     char *value = (char *)malloc(256);
     size_t idx = 0;
     char isValue = 0;
@@ -38,12 +50,12 @@ static char* getPeerHost(char* argv[], int32_t at) {
     if(NULL == value) return(NULL);
 
     memset(value, 0, sizeof(value));
-    /* e.g. --peer-host=<ip address> */
+    /* e.g. --peer-host=<ip address> --user=<value> --password=<value> */
     while(argv[at][idx] != '\0') {
         if(argv[at][idx] == '=') {
             isValue = 1;
         } else if(isValue) {
-            value[offset++] = argv[1][idx];
+            value[offset++] = argv[at][idx];
         }
         ++idx;
     }
@@ -97,17 +109,16 @@ static char* getTopic(int32_t channel) {
 
 int main(int argc, char *argv[])
 {
-    pid_t pid = -1;
-    char *value = NULL;
-    char host[256];
-    if(argc > 1) {
-        int32_t at = 1;
-        value = getPeerHost(argv, at);
-        strncpy(host, value, sizeof(host));
-        free(value);
+    if(argc < 3) {
+        fprintf(stderr,"%s:%d %s",basename(__FILE__),__LINE__, " Invalid number of commandline arguments\n"
+                       "--peer-host=<> --user=<> --password=<>\n"
+                       "argc:%d\n", argc);
+        return(-1); 
     }
 
+    pid_t pid = -1;
     int32_t Fd[2];
+
     if(pipe(Fd)) {
         fprintf(stderr,"%s:%d %s",basename(__FILE__),__LINE__, " pipe for m_Fd is failed\n");
         return(-1); 
@@ -136,10 +147,10 @@ int main(int argc, char *argv[])
         char* _argv[] = {
             "/opt/app/smtc",
             "--role", "client",
-            "--peer-host", host,
+            "--peer-host", getPeerHost(argv),
             "--peer-port", "48989",
-            "--userid", "user",
-            "--password", "Pin@411048",
+            "--userid", getUser(argv),
+            "--password", getPassword(argv),
             "--local-host", "0.0.0.0",
             "--local-port", "38989",
             NULL

@@ -70,8 +70,9 @@ https://cedalo.com/blog/mosquitto-docker-configuration-ultimate-guide/
 
 
 remove the docker image --- sudo docker rmi <image id>
+For Rest Interface to work, Create a User & Password
 
-docker run --rm -p 1883:1883 naushada/mqtt_adapter:latest /opt/app/service --peer-host=10.203.77.36
+docker run --rm -p 1883:1883 naushada/mqtt_adapter:latest /opt/app/service --peer-host=10.203.77.36 --user=user --password=Pin@411048
 
 sudo docker run --rm -p 48989:48989 naushada/mqtt_adapter:latest /opt/app/smtc --role server --local-host 0.0.0.0 --local-port 48989
 sudo docker build  -t naushada/mqtt_adapter:latest $HOME/sw/mqtt_adapter -f Dockerfile
