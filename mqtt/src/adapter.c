@@ -12,7 +12,6 @@ static int32_t getHandle(service_type_t svt, struct epoll_event *evt[], int32_t 
         int64_t elm = evt[idx]->data.u64;
         channel = (elm >> 32) & 0xFFFFFFFFU;
         svc = (elm >> 24) & 0xFFU;
-        //printf("%s:%d channel:%d svc:%d\n", __FUNCTION__, __LINE__, channel, (int32_t)svc);
 
         if(svc == svt) {
             return(channel);
@@ -29,7 +28,6 @@ static int32_t registerToepoll(int32_t epollFd, int32_t fd, service_type_t svt, 
     evt->data.u64 = ((((uint64_t)(fd & 0xFFFFFFFFU)) << 32U) |
                         (uint64_t)((svt & 0xFFU) << 24U));
     int32_t ret = epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, evt);
-    /*printf("%s:%d Fd:%d svc:%d Registered to epoll\n", __FUNCTION__, __LINE__, fd, (int32_t)svt);*/
     return(ret);
 }
 
@@ -52,7 +50,7 @@ static int32_t getLength(int32_t channel) {
         len = read(channel, (void *)&onebyte, 1);
         if(len > 0 && '{' == onebyte) {
             return(atoi(length_str));
-        } else if( offset >= sizeof(length_str)) {
+        } else if(offset >= sizeof(length_str)) {
             memset(length_str, 0, sizeof(length_str));
             offset = 0;
         } else {
@@ -122,11 +120,13 @@ static void waitUntilBrokerReady(int32_t channel) {
             }
         } else if(offset >= sizeof(word)) {
             offset = 0;
+            memset(word, 0, sizeof(word));
         } else {
             word[offset++] = onebyte;
         }
     }
 }
+
 static int32_t handleIO(int32_t channel, service_type_t svc, struct epoll_event *evtlist[], int32_t evtCount) {
     switch (svc)
     {
@@ -148,7 +148,7 @@ static int32_t handleIO(int32_t channel, service_type_t svc, struct epoll_event 
                 "Content-Type: application/vnd.api+json\r\n",
                 cl,
                 "\r\n",
-                NULL
+                (char *)NULL
             };
 
             int32_t handle = getHandle(SERVICE_TYPE_NOTIFY_TELEMETRY_DATA, evtlist, evtCount);
@@ -191,7 +191,6 @@ static int32_t handleIO(int32_t channel, service_type_t svc, struct epoll_event 
         break;
     case SERVICE_TYPE_NOTIFY_TELEMETRY_DATA:
     {
-        //printf("%s:%d Not Expecting Request/Response\n", __FUNCTION__, __LINE__);
         char buffer[1024];
         ssize_t len =  recv(channel, (void*)buffer, sizeof(buffer), 0);
         if(len > 0) {
@@ -331,7 +330,6 @@ int main(int argc, char *argv[])
             ///@brief For verbose output.
             "-v",
             "-h",
-            //"192.168.1.102",
             "0.0.0.0",
             "-p",
             "1883",
@@ -341,7 +339,7 @@ int main(int argc, char *argv[])
             //"-d",
             ///@brief Each Packet will have new line character in it.Enable this option if not required.
             //"-N",
-            NULL
+            (char *)NULL
         };
 
         if(execvp(_argv[0], _argv) < 0) {
