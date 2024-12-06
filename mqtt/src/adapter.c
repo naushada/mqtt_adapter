@@ -242,7 +242,7 @@ int32_t startAndConnectTCPClient(const char* host, uint16_t port) {
         ret = connect(handle, (struct sockaddr *)&peerAddr, sizeof(peerAddr));
         if(ret < 0) {
             if(EINPROGRESS == errno) {
-                fprintf(stderr, "%s:%d connecting to Telemetry server on port 28989 is in progress...\n", basename(__FILE__), __LINE__);
+                fprintf(stderr, "%s:%d connecting to Telemetry server on port %d is in progress...\n", basename(__FILE__), __LINE__, port);
                 return(handle);
             }
             // TODO:: Add Error log
