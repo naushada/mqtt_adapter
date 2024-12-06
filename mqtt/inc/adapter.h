@@ -30,11 +30,6 @@
 #include <signal.h>
 #include <libgen.h>
 
-typedef union {
-    unsigned int num;
-    unsigned char ch[16];
-}itoa_t;
-
 typedef enum {
     SERVICE_TYPE_SIGNAL,
     SERVICE_TYPE_TELEMETRY,

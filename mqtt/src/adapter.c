@@ -230,9 +230,9 @@ int32_t startAndConnectTCPClient(const char* host, uint16_t port) {
 
         struct addrinfo *result;
         struct sockaddr_in peerAddr;
-        itoa_t itoa_data;
-        itoa_data.num = port;
-        int32_t s = getaddrinfo(host, /*(char *)itoa_data.ch*/"28989", NULL, &result);
+        uint8_t ch[8];
+        snprintf(ch, sizeof(ch) -1, "%d", port);
+        int32_t s = getaddrinfo(host, (char *)ch, NULL, &result);
 
         if(!s) {
             peerAddr = *((struct sockaddr_in*)(result->ai_addr));
