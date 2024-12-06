@@ -49,11 +49,14 @@ static char* getValue(char* argv[], int32_t at) {
 
     if(NULL == value) return(NULL);
 
-    memset(value, 0, sizeof(value));
+    memset(value, 0, 256);
     /* e.g. --peer-host=<ip address> --user=<value> --password=<value> */
     while(argv[at][idx] != '\0') {
         if(argv[at][idx] == '=') {
             isValue = 1;
+        } else if(offset >= 255) {
+            offset = 0;
+            memset(value, 0, 256);
         } else if(isValue) {
             value[offset++] = argv[at][idx];
         }
@@ -80,10 +83,17 @@ static char* getTopic(int32_t channel) {
 
     /*The input received has this format length value, the delimiter between length and value is ' ' (space)*/
     while(1) {
+
         len = read(channel, (void *)&onebyte, 1);
-        if(len > 0 && ' ' == onebyte) 
+        if(len > 0 && ' ' == onebyte) {
+            length_str[offset] = '\0';
             break;
-        length_str[offset++] = onebyte;
+        } else if(len > 0 && offset >= sizeof(length_str)) {
+            offset = 0;
+            memset(length_str, 0, sizeof(length_str));
+        } else {
+            length_str[offset++] = onebyte;
+        }
     }
 
     uint32_t length = atoi(length_str);
