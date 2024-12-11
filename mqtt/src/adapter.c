@@ -108,7 +108,10 @@ static void waitUntilBrokerReady(int32_t channel) {
     while(1) {
         /* let mosquitto broker settled down so that subscriber will be able to connect to broker. */
         len = read(channel, (void *)&onebyte, 1);
-        if(len > 0 && ' ' == onebyte) {
+        if(offset >= sizeof(word)) {
+            offset = 0;
+            memset(word, 0, sizeof(word));
+        } else if(len > 0 && ' ' == onebyte) {
             offset = 0;
             memset(word, 0, sizeof(word));
             continue;
@@ -118,9 +121,6 @@ static void waitUntilBrokerReady(int32_t channel) {
                 close(channel);
                 break;
             }
-        } else if(offset >= sizeof(word)) {
-            offset = 0;
-            memset(word, 0, sizeof(word));
         } else {
             word[offset++] = onebyte;
         }
