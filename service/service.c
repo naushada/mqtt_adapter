@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
             "--password", getPassword(argv),
             "--local-host", "0.0.0.0",
             "--local-port", "38989",
-            NULL
+            (char *)NULL
         };
 
         if(execvp(_argv[0], _argv) < 0) {
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
         char* _argv[] = {
             "/opt/app/mqtt_adapter",
             "--topic", topic,
-            NULL
+            (char *)NULL
         };
 
         if(execvp(_argv[0], _argv) < 0) {
